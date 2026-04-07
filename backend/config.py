@@ -2,5 +2,5 @@ import os
 
 PRODUCTION = os.getenv("PRODUCTION", "False").lower() == "true"
 
-LLM_MODEL = "gemini-3.1-flash-lite-preview"
+LLM_MODEL = "gemini-2.5-flash"
 TEMPERATURE = 0.2

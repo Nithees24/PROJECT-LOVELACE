@@ -96,6 +96,7 @@ const initLoadAnimations = () => {
 const createMessage = (role, content, options = {}) => {
   const article = document.createElement("article");
   article.className = `message ${role}`;
+  article.classList.add("animate-in");
   if (options.pending) {
     article.classList.add("is-pending");
   }

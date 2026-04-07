@@ -11,6 +11,13 @@ from backend.database import message_model
 from backend.database.connection import SessionLocal
 from backend.database.message_repo import save_message, get_messages
 
+def get_conversation_history(db, conversation_id):
+    messages = get_messages(db, conversation_id)
+    history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in messages
+    ]
+    return history[-20:]
 app = FastAPI()
 
 create_tables()
@@ -34,6 +41,7 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: int
     mode: str = "Chat Agent"
+    messages: list = []
 
 # ✅ API endpoint
 @app.post("/api/chat")
@@ -44,17 +52,18 @@ def chat(req: ChatRequest):
         # 🔹 Save user message
         save_message(db, req.conversation_id, "user", req.message)
 
-        # 🔹 Existing logic (UNCHANGED)
+        # 🔬 Deep Research → stateless
         if req.mode == "Deep Research":
             reply = deep_agent.run(req.message)
-        else:
-            plan = planner.plan(req.message)
-            mode = plan.get("mode")
 
-            if mode == "deep_research":
-                reply = deep_agent.run(req.message)
-            else:
-                reply = general_agent.run(req.message)
+        # 🧠 General Chat → stateful
+        else:
+            history = get_conversation_history(db, req.conversation_id)
+
+            reply = general_agent.run_with_history(
+                req.message,
+                history
+            )
 
         # 🔹 Save assistant reply
         save_message(db, req.conversation_id, "assistant", reply)
