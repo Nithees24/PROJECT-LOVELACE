@@ -184,30 +184,42 @@
               <div class="agent-selector">
                 <button class="icon-tool plain-icon agent-trigger" id="agentTrigger" type="button"
                   aria-label="Select agent" aria-haspopup="true" aria-expanded="false" title="Select agent">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 7h6"></path>
-                    <path d="M15 7h4"></path>
-                    <path d="M5 17h10"></path>
-                    <path d="M19 17h0"></path>
-                    <circle cx="13" cy="7" r="2"></circle>
-                    <circle cx="17" cy="17" r="2"></circle>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="deep-research-icon">
+                    <circle cx="12" cy="12" r="9" stroke-dasharray="2.5 3" />
+                    <ellipse cx="12" cy="12" rx="9" ry="4" />
+                    <ellipse cx="12" cy="12" rx="4" ry="9" />
+                    <circle cx="12" cy="3" r="1.5" fill="currentColor" stroke="none" class="dr-node" />
+                    <circle cx="20" cy="12" r="1.5" fill="currentColor" stroke="none" class="dr-node" />
+                    <circle cx="12" cy="21" r="1.5" fill="currentColor" stroke="none" class="dr-node" />
+                    <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none" class="dr-node" />
+                    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
                   </svg>
                 </button>
                 <div class="agent-menu" id="agentMenu" hidden>
-                  <button class="agent-option" type="button" data-mode="Deep Research">Deep research</button>
+                  <p class="agent-menu-label">Agents</p>
+                  <button class="agent-option" type="button" data-mode="Deep Research">
+                    <span class="agent-option-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" stroke-dasharray="2.5 3" />
+                        <ellipse cx="12" cy="12" rx="9" ry="4" />
+                        <ellipse cx="12" cy="12" rx="4" ry="9" />
+                        <circle cx="12" cy="3" r="1.5" fill="currentColor" stroke="none" />
+                        <circle cx="20" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                        <circle cx="12" cy="21" r="1.5" fill="currentColor" stroke="none" />
+                        <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                        <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+                      </svg>
+                    </span>
+                    <span class="agent-option-body">
+                      <span class="agent-option-title">Deep Research</span>
+                      <span class="agent-option-desc">Searches across dozens of sources</span>
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
 
             <div class="mode-chip-inline" id="modeChipInline" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="6"></circle>
-                <path d="M15.5 15.5L20 20"></path>
-                <path d="M7.5 11h2.5"></path>
-                <path d="M8.75 9.75v2.5"></path>
-                <path d="M12.75 8.25h2.5"></path>
-                <path d="M14 7v2.5"></path>
-              </svg>
               <span>Deep research</span>
               <button class="mode-chip-close" id="modeChipClose" type="button" aria-label="Cancel deep research">
                 <svg viewBox="0 0 20 20" aria-hidden="true">

@@ -1,4 +1,4 @@
-BUILD 0.0.1: 06/03/2026 03:04 PM
+BUILD 0.0.1: 06/03/2026 15:04 
 
 agentic_ai/
 │
@@ -41,7 +41,7 @@ Search agent
 
 
 
-16/03/2026 DEEP RESEARCH AGENT 11.25 PM
+16/03/2026 DEEP RESEARCH AGENT 23.25 
 
 User Query
 ↓
@@ -63,12 +63,12 @@ Should confirm : Evidence → Analysis → Conclusion
 
 
 
-29/03/2026 12:52 AM
+29/03/2026 00:52 
 
 Added upto parser.py and finally completed 1st step of Deep research agent
 
 
-30/03/2026 1.33 AM
+30/03/2026 1.33 
 
 Completed the frontend and added the connection to the backend with the General chat agent
 
@@ -76,3 +76,197 @@ Completed the frontend and added the connection to the backend with the General 
 
 Added the deep research agent module and added DB CONNECTION to the FastAPI - first task completed done
 
+
+PROJECT LOVELACE 10/04/2026 23.24
+
+Overview
+
+  This codebase is a two-part app:
+
+  - A static frontend in /D:/PROJECT%20LOVELACE/frontend/lovelace.html and /
+    D:/PROJECT%20LOVELACE/frontend/script.js that renders the chat UI and
+    posts messages to the backend.
+  - A Python backend in /D:/PROJECT%20LOVELACE/backend/app.py that exposes /
+    api/chat, calls either a normal chat agent or a deep-research agent, and
+    stores messages in a database.
+
+  The main idea is simple: the frontend sends { message, conversation_id,
+  mode }, and the backend routes that request to one of two execution paths.
+
+  Request Flow
+
+  For the web app, the flow is:
+
+  1. User types in the frontend composer in /D:/PROJECT%20LOVELACE/frontend/
+     script.js.
+  2. requestAssistantReply() POSTs to http://127.0.0.1:8000/api/chat.
+  3. /D:/PROJECT%20LOVELACE/backend/app.py saves the user message to the
+     database.
+  4. If mode == "Deep Research", it runs DeepResearchAgent.run(...).
+  5. Otherwise it loads recent conversation history and runs
+     GeneralChatAgent.run_with_history(...).
+  6. The backend saves the assistant reply and returns { "reply": ... }.
+  7. The frontend typewrites the returned text into the chat window.
+
+  There is also a separate CLI entry point in /D:/PROJECT%20LOVELACE/
+  backend/main.py. Unlike the web API, the CLI actually uses the planner to
+  auto-decide between normal chat and deep research.
+
+  Backend Pieces
+
+  /D:/PROJECT%20LOVELACE/backend/app.py is the API layer:
+
+  - Creates the FastAPI app.
+  - Enables permissive CORS.
+  - Instantiates shared singletons: LLMClient, GeneralChatAgent,
+    DeepResearchAgent, Planner.
+  - Defines the /api/chat endpoint.
+
+  /D:/PROJECT%20LOVELACE/backend/llm/llm_client.py is the model wrapper:
+
+  - Loads GOOGLE_API_KEY.
+  - Uses google.genai.
+  - Sends prompts through generate_content(...).
+  - Defaults to the model from /D:/PROJECT%20LOVELACE/backend/config.py,
+    unless a caller overrides it.
+
+  /D:/PROJECT%20LOVELACE/backend/config.py:
+
+  - CHAT_MODEL = "gemini-2.0-flash" for general chat.
+  - LLM_MODEL = "gemma-4-31b-it" as the default for planner/research
+    summarization/aggregation.
+
+  /D:/PROJECT%20LOVELACE/backend/agents/general_chat_agent.py:
+
+  - Builds a prompt with recent chat history.
+  - Uses the faster chat model.
+  - Returns one direct LLM response.
+
+  /D:/PROJECT%20LOVELACE/backend/utils/prompt_builder.py:
+
+  - Injects a system prompt plus prior messages into one plain-text prompt.
+  - The assistant persona and formatting style live here.
+
+  /D:/PROJECT%20LOVELACE/backend/pipeline/planner.py:
+
+  - Asks the LLM to output JSON with mode and steps.
+  - Has a fallback parser that extracts the first JSON-looking block.
+  - Important detail: this planner is used in the CLI path, but not in the
+    current web /api/chat route.
+
+  Deep Research Path
+
+  The research path is orchestrated in /D:/PROJECT%20LOVELACE/backend/
+  agents/deep_research_agent.py.
+
+  Its pipeline is effectively:
+
+  1. Generate search queries with /D:/PROJECT%20LOVELACE/backend/pipeline/
+     query_generator.py
+  2. Search the web with /D:/PROJECT%20LOVELACE/backend/tools/web_search.py
+  3. Scrape pages with /D:/PROJECT%20LOVELACE/backend/tools/scraper.py
+  4. Rank documents inside DeepResearchAgent._rank(...)
+  5. Summarize each document with /D:/PROJECT%20LOVELACE/backend/pipeline/
+     synthesizer.py
+  6. Merge summaries into a final answer with /D:/PROJECT%20LOVELACE/
+     backend/pipeline/aggregator.py
+
+  Key implementation details:
+
+  - Query generation is LLM-based, with fallback queries if parsing fails.
+  - Web search uses DuckDuckGo via ddgs.
+  - Scraping is very lightweight: it fetches the page and joins all <p>
+    tags.
+  - Scraping runs concurrently with ThreadPoolExecutor.
+  - Domain quality is handled by a hand-written score table inside
+    DeepResearchAgent._rank(...).
+  - Final answers include numbered citations and then append a Sources list.
+
+  There are placeholder modules for future paper support:
+
+  - /D:/PROJECT%20LOVELACE/backend/tools/paper_fetch.py currently returns
+    [].
+  - /D:/PROJECT%20LOVELACE/backend/tools/pdf_parser.py is essentially empty.
+  - /D:/PROJECT%20LOVELACE/backend/pipeline/ranker.py exists, but the real
+    ranking logic currently lives inside DeepResearchAgent._rank(...), so
+    the separate Ranker class is mostly unused.
+
+  Database Layer
+
+  Persistence is handled with SQLAlchemy:
+
+  - /D:/PROJECT%20LOVELACE/backend/database/connection.py
+  - /D:/PROJECT%20LOVELACE/backend/database/message_model.py
+  - /D:/PROJECT%20LOVELACE/backend/database/message_repo.py
+
+  What it stores:
+
+  - conversation_id
+  - role
+  - content
+  - timestamp
+
+  How it is used:
+
+  - Every request saves the user message first.
+  - Chat mode reloads up to the last 20 messages for context.
+  - The assistant response is then saved as another row.
+
+  There is also /D:/PROJECT%20LOVELACE/backend/database/db_operations.py,
+  but it uses raw SQL/cursor access and does not appear to be used by the
+  current app.
+
+  Frontend Structure
+
+  /D:/PROJECT%20LOVELACE/frontend/lovelace.html is a static single-page
+  interface with:
+
+  - Left sidebar for mock conversation history
+  - Center chat stage
+  - Right account/settings panel
+  - Agent toggle for switching to Deep Research mode
+  - Theme toggle
+
+  /D:/PROJECT%20LOVELACE/frontend/script.js handles:
+
+  - Sidebar open/close state
+  - Theme switching
+  - Agent menu state
+  - Sending messages
+  - Rendering user/assistant bubbles
+  - A simple markdown parser
+  - A typewriter effect for assistant responses
+
+  Important frontend limitation:
+
+  - The visible conversation history in the sidebar is mostly static/demo
+    UI.
+  - Actual backend persistence uses a hardcoded conversation_id: 1 in the
+    fetch body, so all browser chats are currently merged into one thread
+    unless that is changed.
+
+  What’s Strong vs Incomplete
+
+  Strong:
+
+  - Clear separation between chat and research modes
+  - Thin API layer
+  - Modular research pipeline
+  - Conversation persistence for chat mode
+  - Clean static frontend
+
+  Incomplete or inconsistent:
+
+  - Web API does not use the planner, even though the README and CLI imply
+    planner-based auto-routing
+  - Paper fetching and PDF parsing are placeholders
+  - Ranker class exists but is bypassed by custom ranking code in the agent
+  - Frontend history UI is not wired to backend conversations
+  - messages: list = [] in the Pydantic request model is unused
+  - The aggregator forbids markdown in the answer body but then appends
+    markdown for the sources block, so formatting rules are mixed
+
+  If you want, I can next give you either:
+
+  1. a file-by-file walkthrough, or
+  2. a “what to refactor first” review of the architecture.

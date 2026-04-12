@@ -361,18 +361,30 @@ const parseMarkdown = (rawText) => {
   return html;
 };
 
-const typeWriterEffect = async (element, text, speed = 40) => {
+const typeWriterEffect = async (element, text, speed = 20) => {
   element.innerHTML = "";
-  let accumulatedText = "";
-  const words = text.split(/(\s+)/);
-  for (let i = 0; i < words.length; i++) {
-    accumulatedText += words[i];
-    element.innerHTML = parseMarkdown(accumulatedText);
-    
-    if (words[i].trim().length > 0) {
+  const tokens = text.split(/(\s+)/);
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token === "") continue;
+
+    const span = document.createElement("span");
+    span.className = "tok";
+    span.textContent = token;
+    element.appendChild(span);
+
+    // Small pause only for visible words, not whitespace
+    if (token.trim().length > 0) {
       await new Promise((resolve) => setTimeout(resolve, speed));
     }
   }
+
+  // Final pass: replace token spans with properly parsed markdown
+  const rawText = Array.from(element.querySelectorAll(".tok"))
+    .map((s) => s.textContent)
+    .join("");
+  element.innerHTML = parseMarkdown(rawText);
 };
 
 composer.addEventListener("submit", (event) => {

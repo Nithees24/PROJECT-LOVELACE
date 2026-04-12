@@ -32,15 +32,16 @@ class DeepResearchAgent:
         self.scraper = Scraper()
         self.pdf_parser = PDFParser()
 
-        self.max_urls_per_query = 3
-        self.max_docs_after_ranking = 5
+        self.max_urls_per_query = 10
+        self.max_docs_after_ranking = 40
 
     def run(self, user_query: str) -> str:
         try:
             queries = self.query_generator.generate(user_query)
 
             web_docs = self._search_and_scrape(queries)
-            paper_docs = self._fetch_and_parse_papers(user_query)
+            # paper_docs = self._fetch_and_parse_papers(user_query)  # disabled for now
+            paper_docs = []
 
             all_docs = web_docs + paper_docs
 
@@ -217,7 +218,7 @@ class DeepResearchAgent:
                     urls_to_scrape.append(url)
 
             # 🚀 Parallel scraping
-            with ThreadPoolExecutor(max_workers=5) as executor:
+            with ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [executor.submit(scrape_single, url) for url in urls_to_scrape]
 
                 for future in as_completed(futures):
@@ -335,3 +336,4 @@ class DeepResearchAgent:
         except Exception as e:
             print(f"Aggregation error: {e}")
             return "Failed to generate final report."
+            

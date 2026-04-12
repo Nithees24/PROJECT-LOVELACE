@@ -8,7 +8,9 @@ from backend.agents.deep_research_agent import DeepResearchAgent
 from backend.pipeline.planner import Planner
 from backend.database.connection import create_tables
 from backend.database import message_model
+from backend.database.user_model import User
 from backend.database.connection import SessionLocal
+import hashlib
 from backend.database.message_repo import save_message, get_messages
 
 def get_conversation_history(db, conversation_id):
@@ -36,6 +38,74 @@ llm_client = LLMClient()
 general_agent = GeneralChatAgent(llm_client)
 deep_agent = DeepResearchAgent(llm_client)
 planner = Planner(llm_client)
+
+class CheckEmailRequest(BaseModel):
+    email: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class SignupRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    role: str
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+@app.post("/api/auth/check-email")
+def check_email(req: CheckEmailRequest):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == req.email).first()
+        return {"exists": user is not None}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+@app.post("/api/auth/register")
+def register(req: SignupRequest):
+    db = SessionLocal()
+    try:
+        exists = db.query(User).filter(User.email == req.email).first()
+        if exists:
+            return {"error": "Email already registered"}
+        
+        new_user = User(
+            email=req.email,
+            password_hash=hash_password(req.password),
+            first_name=req.first_name,
+            last_name=req.last_name,
+            role=req.role
+        )
+        db.add(new_user)
+        db.commit()
+        return {"success": True, "message": "User created successfully"}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == req.email).first()
+        if not user:
+            return {"error": "User not found"}
+        
+        if user.password_hash != hash_password(req.password):
+            return {"error": "Incorrect password"}
+            
+        return {"success": True, "user_id": user.id, "first_name": user.first_name}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
 
 class ChatRequest(BaseModel):
     message: str

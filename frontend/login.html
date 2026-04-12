@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lovelace | Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+  <div class="login-page">
+    <div class="ambient ambient-left" aria-hidden="true"></div>
+    <div class="ambient ambient-right" aria-hidden="true"></div>
+
+    <header class="topbar reveal" style="--reveal-order: 0;">
+      <a class="brand" href="lovelace.html" aria-label="Open Lovelace workspace preview">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img">
+            <circle cx="32" cy="32" r="6" class="logo-core"></circle>
+            <ellipse cx="32" cy="32" rx="22" ry="10" class="logo-orbit"></ellipse>
+            <ellipse cx="32" cy="32" rx="22" ry="10" class="logo-orbit" transform="rotate(60 32 32)"></ellipse>
+            <ellipse cx="32" cy="32" rx="22" ry="10" class="logo-orbit" transform="rotate(120 32 32)"></ellipse>
+            <circle cx="52" cy="32" r="3" class="logo-node"></circle>
+            <circle cx="22" cy="15" r="3" class="logo-node"></circle>
+            <circle cx="23" cy="49" r="3" class="logo-node"></circle>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <span class="brand-label">Project Lovelace</span>
+          <strong>Lovelace</strong>
+        </span>
+      </a>
+
+      <div class="topbar-actions">
+        <label class="theme-switch" for="themeToggleCheckbox">
+          <input type="checkbox" id="themeToggleCheckbox" checked>
+          <span class="thumb">
+            <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </span>
+        </label>
+      </div>
+    </header>
+
+    <main class="login-shell">
+      <section class="hero-panel reveal" style="--reveal-order: 1;">
+        <h1>workspace where fast answers become deep research.</h1>
+        <p class="hero-copy">
+          Lovelace keeps scientific exploration, synthesis, and agent-assisted reasoning in one focused environment.
+        </p>
+      </section>
+
+      <section class="auth-panel reveal step-1" id="authPanel" style="--reveal-order: 2;">
+        <div class="auth-box-inner" id="authBoxInner">
+
+          <!-- Step 1: Identifier View -->
+          <div class="auth-view identifier-view" id="identifierView">
+            <div class="auth-copy">
+              <h2>Welcome</h2>
+              <p>Enter your email to sign in or create an account.</p>
+            </div>
+
+            <form class="auth-form" id="identifierForm">
+              <label class="field">
+                <span>Email address</span>
+                <input type="email" id="idEmailInput" placeholder="researcher@lovelace.ai" required>
+              </label>
+
+              <button class="primary-button" id="idSubmitBtn" type="submit">Continue</button>
+            </form>
+
+            <div class="divider" aria-hidden="true">
+              <span></span>
+              <p>or continue with</p>
+              <span></span>
+            </div>
+
+            <div class="auth-actions">
+              <button class="social-button" type="button">
+                <span class="social-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853"
+                      d="M12 23c3.11 0 5.71-1.03 7.62-2.77l-3.57-2.77c-.98.66-2.23 1.06-3.62 1.06-2.79 0-5.15-1.89-5.99-4.44H2.47v2.85A10.999 10.999 0 0 0 12 23z" />
+                    <path fill="#FBBC05"
+                      d="M6.01 14.07c-.21-.64-.33-1.32-.33-2.07s.12-1.43.33-2.07V7.08H2.47a11.001 11.001 0 0 0 0 9.84l3.54-2.85z" />
+                    <path fill="#EA4335"
+                      d="M12 5.38c1.69 0 3.21.58 4.41 1.72l3.31-3.31C17.7 1.98 15.11.83 12 .83a10.999 10.999 0 0 0-9.53 5.42L6.01 9.1c.84-2.55 3.2-4.44 5.99-4.44z" />
+                  </svg>
+                </span>
+                <span>Continue with Google</span>
+              </button>
+              <button class="social-button" type="button">
+                <span class="social-icon">
+                  <svg viewBox="0 0 21 21" width="18" height="18">
+                    <path fill="#f25022" d="M1 1h9v9H1z" />
+                    <path fill="#7fbb00" d="M11 1h9v9h-9z" />
+                    <path fill="#00a1f1" d="M1 11h9v9H1z" />
+                    <path fill="#ffb900" d="M11 11h9v9h-9z" />
+                  </svg>
+                </span>
+                <span>Continue with Microsoft</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2: Login View -->
+          <div class="auth-view login-view" id="loginView">
+            <div class="auth-copy with-back">
+              <button class="back-button" aria-label="Back" data-back>
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <div>
+                <h2>Welcome back</h2>
+                <p class="display-email"></p>
+              </div>
+            </div>
+
+            <form class="auth-form" id="loginForm">
+              <label class="field">
+                <span>Password</span>
+                <div class="password-field">
+                  <input type="password" id="passwordInput" placeholder="Enter your password" required>
+                  <button class="password-toggle" id="passwordToggle" type="button"
+                    aria-label="Show password">Show</button>
+                </div>
+              </label>
+
+              <div class="form-meta">
+                <label class="remember-me">
+                  <input type="checkbox" checked>
+                  <span>Keep me signed in</span>
+                </label>
+                <a href="mailto:support@lovelace.ai" class="text-link">Forgot password?</a>
+              </div>
+
+              <button class="primary-button" id="loginSubmitBtn" type="submit">Login</button>
+            </form>
+          </div>
+
+          <!-- Step 3: Registration details view -->
+          <div class="auth-view signup-view" id="signupView">
+            <div class="auth-copy with-back">
+              <button class="back-button" aria-label="Back" data-back>
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <div>
+                <h2>Join Lovelace</h2>
+                <p class="display-email"></p>
+              </div>
+            </div>
+
+            <form class="auth-form" id="signupForm">
+              <div class="field-row">
+                <label class="field">
+                  <span>First Name</span>
+                  <input type="text" id="firstNameInput" placeholder="Ada" required>
+                </label>
+                <label class="field">
+                  <span>Last Name</span>
+                  <input type="text" id="lastNameInput" placeholder="Lovelace" required>
+                </label>
+              </div>
+
+              <label class="field">
+                <span>Password</span>
+                <div class="password-field">
+                  <input type="password" id="signupPasswordInput" placeholder="Create password" required>
+                  <button class="password-toggle" id="signupPasswordToggle" type="button">Show</button>
+                </div>
+              </label>
+              <label class="field">
+                <span>Confirm Password</span>
+                <div class="password-field">
+                  <input type="password" id="signupConfirmPasswordInput" placeholder="Confirm password" required>
+                  <button class="password-toggle" id="signupConfirmPasswordToggle" type="button">Show</button>
+                </div>
+              </label>
+
+              <label class="field">
+                <span>I am a...</span>
+                <div class="custom-select-wrapper">
+                  <select id="roleInput" required>
+                    <option value="" disabled selected>Select your role</option>
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="researcher">Registered Researcher</option>
+                  </select>
+                </div>
+              </label>
+
+              <button class="primary-button" id="signupSubmitBtn" type="submit">Create account</button>
+            </form>
+          </div>
+        </div>
+
+        <p class="status-message" id="statusMessage" aria-live="polite"></p>
+      </section>
+    </main>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+
+</html>

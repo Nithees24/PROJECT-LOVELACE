@@ -4,7 +4,7 @@ import json
 class QueryGenerator:
     def __init__(self, llm_client):
         self.llm = llm_client
-        self.max_queries = 4
+        self.max_queries = 10
 
     # -----------------------------
     # Public Method
@@ -43,7 +43,7 @@ STRICT RULES:
   • latest research
   • comparisons
   • technical depth
-- Maximum 5 queries
+- Maximum 10 queries
 
 User Query:
 {user_query}

@@ -805,23 +805,34 @@ h3 {
   border-bottom-right-radius: 8px;
 }
 
+/* Assistant: no bubble — open prose */
 .message.assistant .message-card {
   max-width: min(880px, 90%);
-  background: var(--brand-green-surface);
-  color: #fff5e8;
-  box-shadow: 0 18px 34px rgba(34, 49, 45, 0.18);
-  border-bottom-left-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  border-radius: 0;
+  padding: 2px 0 0 0;
 }
 
+/* Pending: inline subtle pill instead of full bubble */
 .message.is-pending .message-card {
-  background: rgba(32, 49, 45, 0.08);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(32, 49, 45, 0.07);
   color: var(--muted);
+  font-size: 0.87rem;
 }
 
 .message.is-error .message-card {
-  background: rgba(217, 95, 57, 0.12);
-  color: #8f2f16;
-  border: 1px solid rgba(217, 95, 57, 0.18);
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(217, 95, 57, 0.1);
+  color: #a03020;
+  border: 1px solid rgba(217, 95, 57, 0.2);
 }
 
 .message-text {
@@ -830,9 +841,14 @@ h3 {
   white-space: pre-wrap;
 }
 
+.message.assistant .message-text {
+  line-height: 1.7;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
 .message-actions button,
-.icon-tool,
-.agent-option {
+.icon-tool {
   padding: 9px 12px;
   border-radius: 999px;
   background: rgba(32, 49, 45, 0.08);
@@ -935,19 +951,56 @@ h3 {
   color: #9cc3ff;
 }
 
+/* Deep Research Icon  */
+.deep-research-icon {
+  transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agent-trigger:hover .deep-research-icon {
+  transform: rotate(30deg);
+}
+
+.agent-trigger.is-active .deep-research-icon {
+  animation: dr-spin 12s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(156, 195, 255, 0.5));
+}
+
+.agent-trigger.is-active .dr-node {
+  animation: dr-node-pulse 2s ease-in-out infinite alternate;
+}
+
+.agent-trigger.is-active .dr-node:nth-child(5) { animation-delay: 0.5s; }
+.agent-trigger.is-active .dr-node:nth-child(6) { animation-delay: 1.0s; }
+.agent-trigger.is-active .dr-node:nth-child(7) { animation-delay: 1.5s; }
+
+@keyframes dr-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes dr-node-pulse {
+  0%   { r: 1.5; opacity: 0.7; }
+  100% { r: 2.2; opacity: 1; }
+}
+
 .agent-menu {
   position: absolute;
   left: 0;
-  bottom: calc(100% + 10px);
-  min-width: 164px;
-  padding: 8px;
+  bottom: calc(100% + 14px);
+  min-width: 220px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  border-radius: 16px;
-  border: 1px solid rgba(24, 35, 33, 0.08);
-  background: rgba(255, 252, 246, 0.98);
-  box-shadow: 0 18px 40px rgba(34, 49, 45, 0.16);
+  gap: 4px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(20, 24, 22, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 0 0 1px rgba(161, 184, 150, 0.12),
+    0 24px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transform-origin: bottom left;
 }
 
@@ -956,7 +1009,16 @@ h3 {
 }
 
 .agent-menu:not([hidden]) {
-  animation: agent-pop 180ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  animation: agent-pop 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.agent-menu-label {
+  margin: 0 0 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .mode-chip-inline[hidden] {
@@ -969,16 +1031,81 @@ h3 {
 }
 
 .agent-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   text-align: left;
-  border-radius: 12px;
-  color: var(--text);
-  background: rgba(32, 49, 45, 0.06);
+  padding: 9px 10px;
+  border-radius: 13px;
+  color: rgba(234, 236, 236, 0.85);
+  background: transparent;
+  transition: background 140ms ease, color 140ms ease;
 }
 
-.agent-option.selected {
-  background: var(--panel-dark);
-  color: #fff7ef;
+.agent-option:hover {
+  background: rgba(161, 184, 150, 0.1);
+  color: #eaecec;
+}
+
+.agent-option-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(156, 195, 255, 0.08);
+  border: 1px solid rgba(156, 195, 255, 0.15);
+  color: #9cc3ff;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.agent-option:hover .agent-option-icon {
+  background: rgba(156, 195, 255, 0.14);
+  box-shadow: 0 0 12px rgba(156, 195, 255, 0.2);
+}
+
+.agent-option-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.agent-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-option-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #eaecec;
+}
+
+.agent-option-desc {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.38);
+  line-height: 1.3;
+}
+
+.agent-option.selected .agent-option-icon {
+  background: rgba(161, 184, 150, 0.18);
+  border-color: rgba(161, 184, 150, 0.35);
+  color: #a1b896;
+}
+
+.agent-option.selected .agent-option-title {
+  color: #a1b896;
+}
+
+.agent-option.selected .agent-option-desc {
+  color: rgba(161, 184, 150, 0.55);
 }
 
 .mode-chip-inline {
@@ -1024,6 +1151,26 @@ h3 {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* Word token animation — smooth LLM streaming effect */
+.tok {
+  display: inline;
+  opacity: 0;
+  animation: tok-in 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes tok-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
   }
 }
 
@@ -1323,8 +1470,7 @@ textarea:disabled {
   color: #0d1211;
 }
 
-:root[data-theme="dark"] .history-menu,
-:root[data-theme="dark"] .agent-menu {
+:root[data-theme="dark"] .history-menu {
   background: rgba(32, 38, 36, 0.98);
   border-color: rgba(255, 255, 255, 0.08);
 }
@@ -1333,14 +1479,34 @@ textarea:disabled {
   background: rgba(32, 38, 36, 0.5);
 }
 
-:root[data-theme="dark"] .message-card {
-  background: #232826;
-  color: #dfe1e1;
-}
-
+/* User bubble — dark mode */
 :root[data-theme="dark"] .message.user .message-card {
   background: linear-gradient(180deg, #b95431 0%, #a64521 100%);
   color: #fffaf4;
+}
+
+/* Assistant prose — dark mode: transparent, inherit theme text */
+:root[data-theme="dark"] .message.assistant .message-card {
+  background: transparent;
+  color: var(--text);
+}
+
+/* Non-assistant generic cards stay dark if needed */
+:root[data-theme="dark"] .message-card {
+  color: #dfe1e1;
+}
+
+/* Pending pill — dark mode */
+:root[data-theme="dark"] .message.is-pending .message-card {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Error — dark mode */
+:root[data-theme="dark"] .message.is-error .message-card {
+  background: rgba(217, 95, 57, 0.1);
+  color: #e07055;
+  border-color: rgba(217, 95, 57, 0.2);
 }
 
 :root[data-theme="dark"] .composer {
