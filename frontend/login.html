@@ -162,8 +162,8 @@
             </form>
           </div>
 
-          <!-- Step 3: Registration details view -->
-          <div class="auth-view signup-view" id="signupView">
+          <!-- Step 3: Registration Name View -->
+          <div class="auth-view signup-name-view" id="signupNameView">
             <div class="auth-copy with-back">
               <button class="back-button" aria-label="Back" data-back>
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
@@ -171,23 +171,39 @@
                 </svg>
               </button>
               <div>
-                <h2>Join Lovelace</h2>
+                <h2>Your Name</h2>
                 <p class="display-email"></p>
               </div>
             </div>
 
-            <form class="auth-form" id="signupForm">
-              <div class="field-row">
-                <label class="field">
-                  <span>First Name</span>
-                  <input type="text" id="firstNameInput" placeholder="Ada" required>
-                </label>
-                <label class="field">
-                  <span>Last Name</span>
-                  <input type="text" id="lastNameInput" placeholder="Lovelace" required>
-                </label>
-              </div>
+            <form class="auth-form" id="signupNameForm">
+              <label class="field">
+                <span>First Name</span>
+                <input type="text" id="firstNameInput" placeholder="Ada" required>
+              </label>
+              <label class="field">
+                <span>Last Name</span>
+                <input type="text" id="lastNameInput" placeholder="Lovelace" required>
+              </label>
 
+              <button class="primary-button" id="signupNameNextBtn" type="submit">Continue</button>
+            </form>
+          </div>
+
+          <!-- Step 4: Login Password View -->
+          <div class="auth-view signup-password-view" id="signupPasswordView">
+            <div class="auth-copy with-back">
+              <button class="back-button" aria-label="Back" onclick="setStep(3)">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <div>
+                <h2>Create Password</h2>
+              </div>
+            </div>
+
+            <form class="auth-form" id="signupPasswordForm">
               <label class="field">
                 <span>Password</span>
                 <div class="password-field">
@@ -202,21 +218,117 @@
                   <button class="password-toggle" id="signupConfirmPasswordToggle" type="button">Show</button>
                 </div>
               </label>
+              <button class="primary-button" id="signupPasswordNextBtn" type="submit">Continue</button>
+            </form>
+          </div>
 
-              <label class="field">
+          <!-- Step 5: Registration details view -->
+          <div class="auth-view signup-details-view" id="signupDetailsView">
+            <div class="auth-copy with-back">
+              <button class="back-button" aria-label="Back" onclick="setStep(4)">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <div>
+                <h2>About You</h2>
+              </div>
+            </div>
+
+            <form class="auth-form" id="signupDetailsForm">
+              <label class="field" id="roleField">
                 <span>I am a...</span>
-                <div class="custom-select-wrapper">
-                  <select id="roleInput" required>
-                    <option value="" disabled selected>Select your role</option>
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="researcher">Registered Researcher</option>
-                  </select>
+                <div class="custom-select" id="roleCustomSelect">
+                  <div class="custom-select-trigger" tabindex="0">
+                    <span class="custom-select-value" style="pointer-events: none;">Select your role</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </div>
+                  <div class="custom-select-options">
+                    <div class="custom-option" data-value="student">Student</div>
+                    <div class="custom-option" data-value="teacher">Teacher</div>
+                    <div class="custom-option" data-value="researcher">Registered Researcher</div>
+                  </div>
+                  <input type="hidden" id="roleInput" required>
+                </div>
+              </label>
+
+              <div class="field" style="margin-top: 8px;">
+                <div class="field-label">Date of Birth</div>
+                <div class="dob-group">
+                  <div class="custom-select dob-month" id="dobMonthSelect" style="flex: 2;">
+                    <div class="custom-select-trigger" tabindex="0">
+                      <span class="custom-select-value" style="pointer-events: none;">Month</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="custom-select-options">
+                      <div class="custom-option" data-value="01">January</div>
+                      <div class="custom-option" data-value="02">February</div>
+                      <div class="custom-option" data-value="03">March</div>
+                      <div class="custom-option" data-value="04">April</div>
+                      <div class="custom-option" data-value="05">May</div>
+                      <div class="custom-option" data-value="06">June</div>
+                      <div class="custom-option" data-value="07">July</div>
+                      <div class="custom-option" data-value="08">August</div>
+                      <div class="custom-option" data-value="09">September</div>
+                      <div class="custom-option" data-value="10">October</div>
+                      <div class="custom-option" data-value="11">November</div>
+                      <div class="custom-option" data-value="12">December</div>
+                    </div>
+                    <input type="hidden" id="dobMonthInput" required>
+                  </div>
+                  <input type="number" id="dobDayInput" placeholder="DD" required min="1" max="31">
+                  <input type="number" id="dobYearInput" placeholder="YYYY" required min="1900" max="2026">
+                </div>
+              </div>
+
+              <label class="field" style="margin-top: 8px;" id="genderField">
+                <span>Gender</span>
+                <div class="custom-select" id="genderCustomSelect">
+                  <div class="custom-select-trigger" tabindex="0">
+                    <span class="custom-select-value" style="pointer-events: none;">Select your gender</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </div>
+                  <div class="custom-select-options">
+                    <div class="custom-option" data-value="Male">Male</div>
+                    <div class="custom-option" data-value="Female">Female</div>
+                    <div class="custom-option" data-value="Transgender">Transgender</div>
+                    <div class="custom-option" data-value="Others">Others</div>
+                    <div class="custom-option" data-value="Prefer not to say">Prefer not to say</div>
+                  </div>
+                  <input type="hidden" id="genderInput" required>
                 </div>
               </label>
 
               <button class="primary-button" id="signupSubmitBtn" type="submit">Create account</button>
             </form>
+          </div>
+
+          <!-- Step 6: Success View -->
+          <div class="auth-view success-view" id="successView">
+            <div class="success-content">
+              <div class="success-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <h2>Account Created!</h2>
+              <p>Your research workspace is ready. Routing you to login...</p>
+            </div>
+          </div>
+
+          <!-- Step 7: Error View -->
+          <div class="auth-view error-view" id="errorView">
+            <div class="error-content">
+              <div class="error-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </div>
+              <h2>Creation Failed</h2>
+              <p id="errorDetailMsg">Something went wrong on our end. Please try again.</p>
+              <button class="ghost-link" onclick="setStep(5)" style="margin-top: 16px; color: var(--text); font-weight: 500;">Try Again</button>
+            </div>
           </div>
         </div>
 
@@ -225,6 +337,12 @@
     </main>
   </div>
 
+  <script>
+    // Login Configuration
+    window.LOVELACE_CONFIG = {
+      API_BASE: "http://127.0.0.1:8000/api/auth"
+    };
+  </script>
   <script src="login.js"></script>
 </body>
 

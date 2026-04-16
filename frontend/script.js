@@ -18,7 +18,35 @@ const historyMoreButtons = Array.from(document.querySelectorAll(".history-more")
 
 const CHAT_MODE = "Chat Agent";
 const DEEP_MODE = "Deep Research";
-const API_ENDPOINT = "http://127.0.0.1:8000/api/chat";
+const API_ENDPOINT = (window.LOVELACE_CONFIG && window.LOVELACE_CONFIG.API_ENDPOINT) || "http://127.0.0.1:8000/api/chat";
+
+// Check if user is logged in
+const userId = localStorage.getItem("lovelace_user_id");
+const userName = localStorage.getItem("lovelace_user_name");
+
+if (!userId) {
+  window.location.href = "login.html";
+}
+
+// Update user profile if element exists
+const userNameElement = document.querySelector(".profile-card h2");
+const userAvatarElement = document.querySelector(".profile-avatar");
+if (userNameElement && userName) {
+  userNameElement.textContent = userName;
+  if (userAvatarElement) {
+    userAvatarElement.textContent = userName.substring(0, 2).toUpperCase();
+  }
+}
+
+// Sign out logic
+const signOutButton = Array.from(document.querySelectorAll(".account-item")).find(el => el.textContent.includes("Sign out"));
+if (signOutButton) {
+  signOutButton.addEventListener("click", () => {
+    localStorage.removeItem("lovelace_user_id");
+    localStorage.removeItem("lovelace_user_name");
+    window.location.href = "login.html";
+  });
+}
 
 let activeMode = CHAT_MODE;
 let isSending = false;
@@ -139,7 +167,7 @@ const requestAssistantReply = async (message) => {
     body: JSON.stringify({
       message,
       mode: activeMode,
-      conversation_id: 1
+      conversation_id: parseInt(userId) || 1
     })
   });
 

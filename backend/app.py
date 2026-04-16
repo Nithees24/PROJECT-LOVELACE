@@ -39,6 +39,8 @@ general_agent = GeneralChatAgent(llm_client)
 deep_agent = DeepResearchAgent(llm_client)
 planner = Planner(llm_client)
 
+from datetime import datetime
+
 class CheckEmailRequest(BaseModel):
     email: str
 
@@ -52,6 +54,8 @@ class SignupRequest(BaseModel):
     first_name: str
     last_name: str
     role: str
+    dob: str = None
+    gender: str = None
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -75,12 +79,25 @@ def register(req: SignupRequest):
         if exists:
             return {"error": "Email already registered"}
         
+        # Calculate age if dob is provided
+        calculated_age = None
+        if req.dob:
+            try:
+                dob_date = datetime.strptime(req.dob, "%Y-%m-%d")
+                today = datetime.utcnow()
+                calculated_age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+            except ValueError:
+                pass # Fallback if date is invalid
+
         new_user = User(
             email=req.email,
             password_hash=hash_password(req.password),
             first_name=req.first_name,
             last_name=req.last_name,
-            role=req.role
+            role=req.role,
+            age=calculated_age,
+            dob=req.dob,
+            gender=req.gender
         )
         db.add(new_user)
         db.commit()
