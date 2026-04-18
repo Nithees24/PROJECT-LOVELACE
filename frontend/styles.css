@@ -16,7 +16,7 @@
   --radius-lg: 20px;
   --radius-md: 16px;
   --shell-padding: 22px;
-  --panel-edge-gap: 10px;
+  --panel-edge-gap: 20px;
   --panel-gap: 20px;
   --left-panel-width: 290px;
   --right-panel-width: 320px;
@@ -65,25 +65,17 @@ button {
   padding-bottom: 4px;
   overflow: hidden;
   --left-rail: calc(var(--left-panel-width) + var(--panel-gap));
-  --right-rail: calc(var(--right-panel-width) + var(--panel-gap));
+  --right-rail: 0px;
   --toggle-gap: 10px;
   --left-toggle-inset: calc(var(--shell-padding) + var(--left-panel-width) + var(--toggle-gap));
-  --right-toggle-inset: calc(var(--shell-padding) + var(--right-panel-width) + var(--toggle-gap));
   transition:
     --left-rail 260ms ease,
-    --right-rail 260ms ease,
-    --left-toggle-inset 260ms ease,
-    --right-toggle-inset 260ms ease;
+    --left-toggle-inset 260ms ease;
 }
 
 .page-shell.left-collapsed {
   --left-rail: 0px;
   --left-toggle-inset: var(--shell-padding);
-}
-
-.page-shell.right-collapsed {
-  --right-rail: 0px;
-  --right-toggle-inset: var(--shell-padding);
 }
 
 .sidebar,
@@ -137,15 +129,7 @@ button {
   width: 246px;
 }
 
-.panel-body-right {
-  width: 276px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.page-shell.left-collapsed .sidebar,
-.page-shell.right-collapsed .control-panel {
+.page-shell.left-collapsed .sidebar {
   opacity: 0;
   pointer-events: none;
   padding-left: 0;
@@ -156,17 +140,12 @@ button {
   box-shadow: none;
 }
 
-.page-shell.left-collapsed .panel-body-left,
-.page-shell.right-collapsed .panel-body-right {
+.page-shell.left-collapsed .panel-body-left {
   opacity: 0;
 }
 
 .page-shell.left-collapsed .sidebar {
   transform: translateX(-18px) scale(0.98);
-}
-
-.page-shell.right-collapsed .control-panel {
-  transform: translateX(18px) scale(0.98);
 }
 
 .chat-stage {
@@ -194,7 +173,7 @@ button {
   margin-right: calc(-1 * (var(--shell-padding) + var(--right-rail)));
   padding-left: calc(var(--shell-padding) + var(--left-rail));
   padding-right: calc(var(--shell-padding) + var(--right-rail));
-  padding-top: 0;
+  padding-top: 32px;
   padding-bottom: 50px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -247,6 +226,127 @@ button {
   z-index: 5;
 }
 
+.page-topbar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.account-popover {
+  position: relative;
+  pointer-events: auto;
+}
+
+.profile-trigger {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(24, 35, 33, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 251, 243, 0.82);
+  box-shadow: 0 16px 34px rgba(34, 49, 45, 0.12);
+  color: var(--text);
+  backdrop-filter: blur(18px);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.profile-trigger:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 20px 38px rgba(34, 49, 45, 0.16);
+}
+
+.profile-trigger:focus-visible {
+  outline: 2px solid rgba(217, 95, 57, 0.45);
+  outline-offset: 3px;
+}
+
+.profile-trigger-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #d56b46 0%, #e7a065 100%);
+  color: #fff8ef;
+  font-size: 0.92rem;
+  display: grid;
+  place-items: center;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+}
+
+.profile-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  width: min(320px, calc(100vw - 2 * var(--shell-padding)));
+  max-height: min(78vh, 640px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: rgba(255, 251, 243, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 24px;
+  box-shadow: 0 28px 60px rgba(34, 49, 45, 0.18);
+  backdrop-filter: blur(20px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-10px) scale(0.96);
+  transform-origin: top right;
+  transition:
+    visibility 0s linear 220ms,
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.profile-menu > * {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 220ms ease,
+    transform 280ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.profile-menu > *:nth-child(2) {
+  transition-delay: 18ms;
+}
+
+.profile-menu > *:nth-child(3) {
+  transition-delay: 36ms;
+}
+
+.profile-menu > *:nth-child(4) {
+  transition-delay: 54ms;
+}
+
+.account-popover.is-open .profile-trigger {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 40px rgba(34, 49, 45, 0.16);
+}
+
+.account-popover.is-open .profile-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.account-popover.is-open .profile-menu > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .panel-toggle {
   position: absolute;
   top: 0;
@@ -271,10 +371,6 @@ button {
 
 #leftPanelToggle {
   left: var(--left-toggle-inset);
-}
-
-#rightPanelToggle {
-  right: var(--right-toggle-inset);
 }
 
 .panel-toggle:focus-visible {
@@ -370,6 +466,49 @@ button {
 
 .logo-node {
   fill: #f2b36c;
+}
+
+/* ===== Brand mark page-load animation ===== */
+.brand-mark.is-loading {
+  animation: avatar-glow 1.6s ease-in-out infinite;
+}
+
+.brand-mark.is-loading svg .logo-core {
+  transform-origin: 32px 32px;
+  animation: core-pulse 1.4s ease-in-out infinite;
+}
+
+.brand-mark.is-loading svg .logo-orbit:nth-child(2) {
+  transform-origin: 32px 32px;
+  animation: orbit-spin-cw 2.2s linear infinite;
+}
+.brand-mark.is-loading svg .logo-orbit:nth-child(3) {
+  transform-origin: 32px 32px;
+  animation: orbit-spin-ccw 1.8s linear infinite;
+}
+.brand-mark.is-loading svg .logo-orbit:nth-child(4) {
+  transform-origin: 32px 32px;
+  animation: orbit-spin-cw 3s linear infinite;
+}
+
+.brand-mark.is-loading svg .logo-node:nth-child(5) {
+  transform-origin: 52px 32px;
+  animation: node-breathe 1.4s 0s ease-in-out infinite;
+}
+.brand-mark.is-loading svg .logo-node:nth-child(6) {
+  transform-origin: 22px 15px;
+  animation: node-breathe 1.4s 0.47s ease-in-out infinite;
+}
+.brand-mark.is-loading svg .logo-node:nth-child(7) {
+  transform-origin: 23px 49px;
+  animation: node-breathe 1.4s 0.94s ease-in-out infinite;
+}
+
+/* Smooth stop: once is-loading is removed, animations fade/freeze */
+.brand-mark svg .logo-core,
+.brand-mark svg .logo-orbit,
+.brand-mark svg .logo-node {
+  transition: opacity 0.5s ease;
 }
 
 .eyebrow {
@@ -507,6 +646,7 @@ h3 {
 
 .agent-pill,
 .profile-card,
+.workspace-card,
 .account-card,
 .settings-card,
 .insight-card,
@@ -815,16 +955,75 @@ h3 {
   padding: 2px 0 0 0;
 }
 
-/* Pending: inline subtle pill instead of full bubble */
+/* ===== Thinking animation keyframes ===== */
+@keyframes orbit-spin-cw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes orbit-spin-ccw {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+@keyframes core-pulse {
+  0%, 100% { r: 6; opacity: 1; }
+  50%       { r: 8; opacity: 0.7; }
+}
+@keyframes node-breathe {
+  0%, 100% { opacity: 0.5; r: 3; }
+  50%       { opacity: 1;   r: 4; }
+}
+@keyframes avatar-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(93, 168, 142, 0), 0 12px 24px rgba(34, 49, 45, 0.16); }
+  50%       { box-shadow: 0 0 0 6px rgba(93, 168, 142, 0.18), 0 12px 24px rgba(34, 49, 45, 0.16); }
+}
+
+/* Pending: hide card bubble, only the animated logo speaks */
 .message.is-pending .message-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(32, 49, 45, 0.07);
-  color: var(--muted);
-  font-size: 0.87rem;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.message.is-pending .message-text {
+  display: none;
+}
+
+/* Glow behind the avatar */
+.message.is-pending .message-avatar {
+  animation: avatar-glow 1.6s ease-in-out infinite;
+}
+
+/* Core circle - slow pulse */
+.message.is-pending .message-avatar svg .logo-core {
+  transform-origin: 32px 32px;
+  animation: core-pulse 1.4s ease-in-out infinite;
+}
+
+/* Three orbits at different speeds / directions */
+.message.is-pending .message-avatar svg .logo-orbit:nth-child(2) {
+  transform-origin: 32px 32px;
+  animation: orbit-spin-cw 2.2s linear infinite;
+}
+.message.is-pending .message-avatar svg .logo-orbit:nth-child(3) {
+  transform-origin: 32px 32px;
+  animation: orbit-spin-ccw 1.8s linear infinite;
+}
+.message.is-pending .message-avatar svg .logo-orbit:nth-child(4) {
+  transform-origin: 32px 32px;
+  animation: orbit-spin-cw 3s linear infinite;
+}
+
+/* Nodes - staggered breathe */
+.message.is-pending .message-avatar svg .logo-node:nth-child(5) {
+  transform-origin: 52px 32px;
+  animation: node-breathe 1.4s 0s ease-in-out infinite;
+}
+.message.is-pending .message-avatar svg .logo-node:nth-child(6) {
+  transform-origin: 22px 15px;
+  animation: node-breathe 1.4s 0.47s ease-in-out infinite;
+}
+.message.is-pending .message-avatar svg .logo-node:nth-child(7) {
+  transform-origin: 23px 49px;
+  animation: node-breathe 1.4s 0.94s ease-in-out infinite;
 }
 
 .message.is-error .message-card {
@@ -856,6 +1055,7 @@ h3 {
 }
 
 .composer {
+  position: relative;
   width: var(--chat-column-width);
   align-self: center;
   padding: 16px;
@@ -865,6 +1065,38 @@ h3 {
   box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.9), inset 0 4px 12px rgba(255, 255, 255, 0.3);
   flex-shrink: 0;
   border-radius: 28px;
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(16px) scale(0.9);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--panel-dark);
+  color: #fff7ef;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 16px rgba(34, 49, 45, 0.15);
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 200ms ease, transform 200ms cubic-bezier(0.18, 1.05, 0.32, 1.1) ease;
+}
+
+.scroll-to-bottom-btn.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.scroll-to-bottom-btn:hover {
+  background: rgba(32, 49, 45, 0.95);
+  box-shadow: 0 12px 24px rgba(34, 49, 45, 0.2);
 }
 
 .composer.is-busy {
@@ -1274,12 +1506,27 @@ textarea:disabled {
 }
 
 .profile-card,
+.workspace-card,
 .account-card,
 .settings-card,
 .insight-card {
   padding: 16px 18px;
   background: rgba(255, 253, 248, 0.72);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.workspace-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.workspace-toggle-row h2 {
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .profile-head {
@@ -1358,6 +1605,27 @@ textarea:disabled {
   font-size: 0.9rem;
 }
 
+.panel-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.panel-footer-links a {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 160ms;
+}
+
+.panel-footer-links a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .insight-card ul {
   padding-left: 16px;
   margin: 10px 0 0;
@@ -1375,7 +1643,6 @@ textarea:disabled {
 @media (max-width: 1180px) {
   .page-shell {
     --left-panel-width: 260px;
-    --right-panel-width: 280px;
   }
 }
 
@@ -1390,6 +1657,16 @@ textarea:disabled {
   .control-panel {
     display: none;
     padding: 18px;
+  }
+
+  .page-topbar {
+    top: 20px;
+    right: 20px;
+  }
+
+  .profile-menu {
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100vh - 92px);
   }
 
   .chat-stage {
@@ -1427,6 +1704,18 @@ textarea:disabled {
   .composer {
     border-radius: 22px;
   }
+
+  .profile-trigger {
+    width: 52px;
+    height: 52px;
+    border-radius: 18px;
+  }
+
+  .profile-menu {
+    right: 0;
+    border-radius: 22px;
+    padding: 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1440,7 +1729,10 @@ textarea:disabled {
   }
 
   .chat-stage,
-  .panel-toggle {
+  .panel-toggle,
+  .profile-trigger,
+  .profile-menu,
+  .profile-menu > * {
     transition: none;
   }
 }
@@ -1463,6 +1755,18 @@ textarea:disabled {
 :root[data-theme="dark"] .panel-toggle {
   background: rgba(32, 38, 36, 0.76);
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .profile-trigger {
+  background: rgba(32, 38, 36, 0.84);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #eaecec;
+}
+
+:root[data-theme="dark"] .profile-menu {
+  background: rgba(22, 26, 25, 0.92);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.36);
 }
 
 :root[data-theme="dark"] .panel-toggle.is-collapsed {
@@ -1496,10 +1800,20 @@ textarea:disabled {
   color: #dfe1e1;
 }
 
-/* Pending pill — dark mode */
+/* Pending — dark mode: transparent card + warm glow */
 :root[data-theme="dark"] .message.is-pending .message-card {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.4);
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+@keyframes avatar-glow-dark {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(93, 168, 142, 0), 0 12px 24px rgba(0, 0, 0, 0.35); }
+  50%       { box-shadow: 0 0 0 7px rgba(93, 168, 142, 0.22), 0 12px 24px rgba(0, 0, 0, 0.35); }
+}
+
+:root[data-theme="dark"] .message.is-pending .message-avatar {
+  animation: avatar-glow-dark 1.6s ease-in-out infinite;
 }
 
 /* Error — dark mode */
@@ -1522,6 +1836,7 @@ textarea:disabled {
 }
 
 :root[data-theme="dark"] .profile-card,
+:root[data-theme="dark"] .workspace-card,
 :root[data-theme="dark"] .account-card,
 :root[data-theme="dark"] .settings-card,
 :root[data-theme="dark"] .insight-card {
@@ -1544,6 +1859,10 @@ textarea:disabled {
 :root[data-theme="dark"] .message-avatar,
 :root[data-theme="dark"] .intro-logo {
   color: #eaecec;
+}
+
+:root[data-theme="dark"] .brand-mark.is-loading {
+  animation: avatar-glow-dark 1.6s ease-in-out infinite;
 }
 
 :root[data-theme="dark"] .icon-tool.plain-icon,
@@ -1678,3 +1997,559 @@ html.theme-transition::view-transition-old(root) {
 html.theme-transition::view-transition-new(root) {
   z-index: 2;
 }
+
+/* ===== Account Management Dialog ===== */
+
+.account-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease;
+}
+
+.account-overlay.is-open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.account-dialog {
+  width: 520px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 32px 36px 28px;
+  background: rgba(255, 251, 243, 0.96);
+  border: 1px solid rgba(24, 35, 33, 0.08);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.18);
+  transform: translateY(24px) scale(0.97);
+  transition: transform 320ms cubic-bezier(0.2, 0.9, 0.2, 1), opacity 280ms ease;
+  opacity: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(24, 35, 33, 0.24) transparent;
+}
+
+.account-overlay.is-open .account-dialog {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.password-confirm-dialog {
+  width: 420px;
+}
+
+.account-dialog::-webkit-scrollbar {
+  width: 10px;
+}
+.account-dialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+.account-dialog::-webkit-scrollbar-thumb {
+  background: rgba(24, 35, 33, 0.24);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.account-dialog::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 35, 33, 0.34);
+  background-clip: content-box;
+}
+
+.account-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.account-dialog-header h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.account-dialog-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 10px;
+  background: rgba(24, 35, 33, 0.06);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 160ms, color 160ms, transform 160ms;
+}
+
+.account-dialog-close:hover {
+  background: rgba(24, 35, 33, 0.12);
+  color: var(--text);
+  transform: scale(1.05);
+}
+
+.account-section {
+  margin-bottom: 8px;
+}
+
+.account-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.account-section-header h3 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.account-edit-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms, border-color 160ms, transform 160ms;
+}
+
+.account-edit-btn:hover {
+  background: rgba(217, 95, 57, 0.08);
+  border-color: rgba(217, 95, 57, 0.3);
+  transform: translateY(-1px);
+}
+
+.account-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.account-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.account-field input,
+.account-field select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms, background 160ms, opacity 160ms;
+}
+
+.account-field input:disabled,
+.account-field select:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.account-field input:not(:disabled):focus,
+.account-field select:not(:disabled):focus {
+  border-color: rgba(217, 95, 57, 0.5);
+  box-shadow: 0 0 0 4px rgba(217, 95, 57, 0.1);
+}
+
+.account-field input.always-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.acct-password-field {
+  position: relative;
+}
+
+.acct-password-field input {
+  width: 100%;
+  padding: 10px 72px 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+
+.acct-password-field input:focus {
+  border-color: rgba(217, 95, 57, 0.5);
+  box-shadow: 0 0 0 4px rgba(217, 95, 57, 0.1);
+}
+
+.acct-pw-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 160ms;
+}
+
+.acct-pw-toggle:hover {
+  color: var(--text);
+}
+
+.account-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 20px 0;
+}
+
+.account-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.account-save-btn {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, #ec8b55 100%);
+  color: #fff7f0;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(217, 95, 57, 0.2);
+  transition: transform 160ms, box-shadow 160ms;
+}
+
+.account-save-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(217, 95, 57, 0.28);
+}
+
+.account-cancel-btn {
+  padding: 10px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: color 160ms, border-color 160ms, transform 160ms;
+}
+
+.account-cancel-btn:hover {
+  color: var(--text);
+  border-color: var(--text);
+  transform: translateY(-1px);
+}
+
+.account-dialog-status {
+  margin-top: 14px;
+  font-size: 0.84rem;
+  text-align: center;
+  min-height: 1.2em;
+  transition: color 200ms;
+}
+
+.password-confirm-desc {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+  line-height: 1.45;
+}
+
+/* Dark mode for Account Dialog */
+:root[data-theme="dark"] .account-dialog {
+  background: rgba(22, 26, 25, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="dark"] .account-dialog-close {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .account-dialog-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .account-field input,
+:root[data-theme="dark"] .account-field select,
+:root[data-theme="dark"] .acct-password-field input {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .account-field input:not(:disabled):focus,
+:root[data-theme="dark"] .account-field select:not(:disabled):focus,
+:root[data-theme="dark"] .acct-password-field input:focus {
+  border-color: rgba(219, 111, 73, 0.5);
+  box-shadow: 0 0 0 4px rgba(219, 111, 73, 0.12);
+}
+
+:root[data-theme="dark"] .account-edit-btn {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .account-edit-btn:hover {
+  background: rgba(217, 95, 57, 0.12);
+  border-color: rgba(217, 95, 57, 0.3);
+}
+
+:root[data-theme="dark"] .account-cancel-btn {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .account-cancel-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+:root[data-theme="dark"] .account-dialog::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] .acct-custom-select-options::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  background-clip: content-box;
+}
+
+:root[data-theme="dark"] .account-dialog::-webkit-scrollbar-thumb:hover,
+:root[data-theme="dark"] .acct-custom-select-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+  background-clip: content-box;
+}
+
+:root[data-theme="dark"] .account-overlay {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* ===== Account Dialog Custom Select & DOB ===== */
+
+.acct-custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.acct-custom-select-trigger {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms, background 160ms, opacity 160ms;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  font-size: 0.92rem;
+}
+
+.acct-custom-select-trigger svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.acct-custom-select-value {
+  pointer-events: none;
+}
+
+.acct-custom-select.open .acct-custom-select-trigger svg {
+  transform: rotate(180deg);
+}
+
+.acct-custom-select.selected .acct-custom-select-trigger {
+  color: var(--text);
+}
+
+.acct-custom-select.disabled .acct-custom-select-trigger {
+  opacity: 0.65;
+  cursor: default;
+  pointer-events: none;
+}
+
+.acct-custom-select-options {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 250px;
+  background: rgba(255, 251, 243, 0.98);
+  border: 1px solid rgba(24, 35, 33, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(24px);
+  z-index: 120;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 200px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(24, 35, 33, 0.24) transparent;
+}
+
+.acct-custom-select-options::-webkit-scrollbar {
+  width: 10px;
+}
+.acct-custom-select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+.acct-custom-select-options::-webkit-scrollbar-thumb {
+  background: rgba(24, 35, 33, 0.24);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.acct-custom-select-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 35, 33, 0.34);
+  background-clip: content-box;
+}
+
+.acct-custom-select.open .acct-custom-select-options {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(0);
+}
+
+.acct-custom-option {
+  padding: 8px 16px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 160ms;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.acct-custom-option:hover,
+.acct-custom-option.selected {
+  background: rgba(24, 35, 33, 0.05);
+}
+
+.acct-custom-select-trigger:focus {
+  border-color: rgba(217, 95, 57, 0.5);
+  box-shadow: 0 0 0 4px rgba(217, 95, 57, 0.1);
+}
+
+/* DOB group */
+.acct-dob-group {
+  display: flex;
+  gap: 12px;
+}
+
+.acct-dob-month {
+  flex: 2;
+}
+
+.acct-dob-group input[type="number"] {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms, opacity 160ms;
+  -moz-appearance: textfield;
+}
+
+.acct-dob-group input[type="number"]::-webkit-outer-spin-button,
+.acct-dob-group input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.acct-dob-group input[type="number"]:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.acct-dob-group input[type="number"]:not(:disabled):focus {
+  border-color: rgba(217, 95, 57, 0.5);
+  box-shadow: 0 0 0 4px rgba(217, 95, 57, 0.1);
+}
+
+/* Dark mode overrides for account custom selects */
+:root[data-theme="dark"] .acct-custom-select-trigger {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .acct-custom-select.selected .acct-custom-select-trigger {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .acct-custom-select-trigger:focus {
+  border-color: rgba(219, 111, 73, 0.5);
+  box-shadow: 0 0 0 4px rgba(219, 111, 73, 0.12);
+}
+
+:root[data-theme="dark"] .acct-custom-select-options {
+  background: #111413;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .acct-custom-option:hover,
+:root[data-theme="dark"] .acct-custom-option.selected {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .acct-dob-group input[type="number"] {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .acct-dob-group input[type="number"]:not(:disabled):focus {
+  border-color: rgba(219, 111, 73, 0.5);
+  box-shadow: 0 0 0 4px rgba(219, 111, 73, 0.12);
+}
+
+

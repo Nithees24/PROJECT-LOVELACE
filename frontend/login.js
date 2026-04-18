@@ -100,6 +100,10 @@ setupPasswordToggle(signupConfirmPasswordInput, signupConfirmPasswordToggle);
 // Base API URL (Use configuration from window if available)
 const API_BASE = (window.LOVELACE_CONFIG && window.LOVELACE_CONFIG.API_BASE) || "http://127.0.0.1:8000/api/auth";
 
+if (localStorage.getItem("lovelace_user_id")) {
+  window.location.replace("lovelace.html");
+}
+
 // Step 1: Identifier
 identifierForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -154,21 +158,24 @@ loginForm.addEventListener("submit", async (e) => {
     const data = await res.json();
 
     if (data.error) {
-      statusMessage.textContent = data.error;
-      statusMessage.style.color = "#ff8d72";
+      statusMessage.textContent = "";
+      document.getElementById("loginErrorMsg").textContent = "Email/password doesn't match.";
+      setStep(9);
     } else if (data.success) {
-      statusMessage.textContent = `Welcome back, ${data.first_name || 'Researcher'}!`;
-      statusMessage.style.color = "var(--accent-2)";
+      statusMessage.textContent = "";
+      document.getElementById("loginSuccessMsg").textContent = `Welcome back, ${data.first_name || 'Researcher'}!`;
+      setStep(8);
       
       // Save user info for the workspace
       localStorage.setItem("lovelace_user_id", data.user_id);
       localStorage.setItem("lovelace_user_name", data.first_name);
       
-      setTimeout(() => window.location.href = "lovelace.html", 1000);
+      setTimeout(() => window.location.replace("lovelace.html"), 1500);
     }
   } catch (err) {
-    statusMessage.textContent = "Error authenticating.";
-    statusMessage.style.color = "#ff8d72";
+    statusMessage.textContent = "";
+    document.getElementById("loginErrorMsg").textContent = "Error authenticating. Please try again.";
+    setStep(9);
   }
 });
 

@@ -15,7 +15,7 @@
 </head>
 
 <body>
-  <div class="page-shell right-collapsed" id="pageShell">
+  <div class="page-shell" id="pageShell">
     <div class="panel-controls" aria-label="Layout controls">
       <button class="panel-toggle" id="leftPanelToggle" type="button" aria-label="Hide left panel"
         title="Hide left panel">
@@ -25,20 +25,71 @@
           <path d="M7 12h-2"></path>
         </svg>
       </button>
-      <button class="panel-toggle" id="rightPanelToggle" type="button" aria-label="Hide right panel"
-        title="Hide right panel">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-          <path d="M15 5v14"></path>
-          <path d="M19 12h-2"></path>
-        </svg>
-      </button>
+    </div>
+
+    <div class="page-topbar">
+      <div class="account-popover" id="accountPopover">
+        <button class="profile-trigger" id="profileMenuButton" type="button" aria-label="Open account menu"
+          aria-haspopup="true" aria-expanded="false">
+          <span class="profile-trigger-avatar" id="profileMenuAvatar" data-user-avatar>AK</span>
+        </button>
+
+        <div class="profile-menu" id="profileMenu" aria-label="Account and settings" aria-hidden="true">
+          <section class="profile-card">
+            <div class="profile-head">
+              <div class="profile-avatar" id="profileMenuCardAvatar" data-user-avatar>AK</div>
+              <div>
+                <p class="profile-kicker">Profile</p>
+                <h2 id="profileMenuName" data-user-name>Research Lead</h2>
+                <p class="profile-meta">Project Lovelace Workspace</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="workspace-card">
+            <label class="workspace-toggle-row" for="themeToggleCheckbox">
+              <div>
+                <p class="profile-kicker">Settings</p>
+                <h2>Appearance</h2>
+              </div>
+              <div class="theme-switch">
+                <input type="checkbox" id="themeToggleCheckbox" checked>
+                <span class="slider">
+                  <span class="thumb">
+                    <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                  </span>
+                </span>
+              </div>
+            </label>
+          </section>
+
+          <section class="account-card">
+            <p class="profile-kicker">Account</p>
+            <div class="account-list">
+              <button class="account-item" id="manageAccountBtn" type="button">
+                <span>Manage your account</span>
+                <span class="account-arrow">&gt;</span>
+              </button>
+              <button class="account-item" id="signOutBtn" type="button">
+                <span>Sign out</span>
+                <span class="account-arrow">&gt;</span>
+              </button>
+            </div>
+          </section>
+
+          <div class="panel-footer-links">
+            <a href="#">Privacy policy</a>
+            <a href="#">Terms of service</a>
+          </div>
+        </div>
+      </div>
     </div>
 
     <aside class="sidebar" id="leftPanel">
       <div class="panel-body panel-body-left">
         <div class="brand-card">
-          <div class="brand-mark" aria-hidden="true">
+          <div class="brand-mark is-loading" id="brandMark" aria-hidden="true">
             <svg viewBox="0 0 64 64" role="img">
               <circle cx="32" cy="32" r="6" class="logo-core"></circle>
               <ellipse cx="32" cy="32" rx="22" ry="10" class="logo-orbit"></ellipse>
@@ -52,103 +103,16 @@
           <div class="brand-text">
             <p class="eyebrow">Project Lovelace</p>
             <h1>Lovelace</h1>
-            <p class="brand-copy">Agentic AI workspace for scientific thinking, discovery, and structured answers.</p>
+            <p class="brand-copy">Agentic AI workspace for scientific thinking, discovery, and structured answers.</p>
           </div>
         </div>
 
-        <button class="primary-action" type="button">+ New Conversation</button>
+        <button class="primary-action" id="newChatBtn" type="button">+ New Conversation</button>
 
         <section class="sidebar-section">
           <p class="history-label">Recent</p>
-          <div class="history-list">
-            <div class="history-row">
-              <button class="history-topic selected" type="button">
-                <span class="history-dot"></span>
-                <span>Quantum battery materials</span>
-              </button>
-              <div class="history-actions">
-                <button class="history-more" type="button" aria-label="Conversation options" aria-haspopup="true"
-                  aria-expanded="false">
-                  <svg viewBox="0 0 20 20" aria-hidden="true">
-                    <circle cx="5" cy="10" r="1.5"></circle>
-                    <circle cx="10" cy="10" r="1.5"></circle>
-                    <circle cx="15" cy="10" r="1.5"></circle>
-                  </svg>
-                </button>
-                <div class="history-menu" hidden>
-                  <button type="button">Share conversation</button>
-                  <button type="button">Pin</button>
-                  <button type="button">Rename</button>
-                  <button type="button">Delete</button>
-                </div>
-              </div>
-            </div>
-            <div class="history-row">
-              <button class="history-topic" type="button">
-                <span class="history-dot"></span>
-                <span>CRISPR delivery systems review</span>
-              </button>
-              <div class="history-actions">
-                <button class="history-more" type="button" aria-label="Conversation options" aria-haspopup="true"
-                  aria-expanded="false">
-                  <svg viewBox="0 0 20 20" aria-hidden="true">
-                    <circle cx="5" cy="10" r="1.5"></circle>
-                    <circle cx="10" cy="10" r="1.5"></circle>
-                    <circle cx="15" cy="10" r="1.5"></circle>
-                  </svg>
-                </button>
-                <div class="history-menu" hidden>
-                  <button type="button">Share conversation</button>
-                  <button type="button">Pin</button>
-                  <button type="button">Rename</button>
-                  <button type="button">Delete</button>
-                </div>
-              </div>
-            </div>
-            <div class="history-row">
-              <button class="history-topic" type="button">
-                <span class="history-dot"></span>
-                <span>Nanoparticle toxicity summary</span>
-              </button>
-              <div class="history-actions">
-                <button class="history-more" type="button" aria-label="Conversation options" aria-haspopup="true"
-                  aria-expanded="false">
-                  <svg viewBox="0 0 20 20" aria-hidden="true">
-                    <circle cx="5" cy="10" r="1.5"></circle>
-                    <circle cx="10" cy="10" r="1.5"></circle>
-                    <circle cx="15" cy="10" r="1.5"></circle>
-                  </svg>
-                </button>
-                <div class="history-menu" hidden>
-                  <button type="button">Share conversation</button>
-                  <button type="button">Pin</button>
-                  <button type="button">Rename</button>
-                  <button type="button">Delete</button>
-                </div>
-              </div>
-            </div>
-            <div class="history-row">
-              <button class="history-topic" type="button">
-                <span class="history-dot"></span>
-                <span>Fusion reactor literature map</span>
-              </button>
-              <div class="history-actions">
-                <button class="history-more" type="button" aria-label="Conversation options" aria-haspopup="true"
-                  aria-expanded="false">
-                  <svg viewBox="0 0 20 20" aria-hidden="true">
-                    <circle cx="5" cy="10" r="1.5"></circle>
-                    <circle cx="10" cy="10" r="1.5"></circle>
-                    <circle cx="15" cy="10" r="1.5"></circle>
-                  </svg>
-                </button>
-                <div class="history-menu" hidden>
-                  <button type="button">Share conversation</button>
-                  <button type="button">Pin</button>
-                  <button type="button">Rename</button>
-                  <button type="button">Delete</button>
-                </div>
-              </div>
-            </div>
+          <div class="history-list" id="historyList">
+            <!-- Dynamically populated via JS -->
           </div>
         </section>
 
@@ -175,6 +139,12 @@
       <section class="chat-window is-empty" id="chatWindow" aria-label="Conversation"></section>
 
       <form class="composer" id="composer">
+        <button class="scroll-to-bottom-btn" id="scrollToBottomBtn" type="button" aria-label="Scroll to bottom">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <polyline points="19 12 12 19 5 12"></polyline>
+          </svg>
+        </button>
         <div class="composer-top">
           <div class="composer-toolbar">
             <div class="composer-tools">
@@ -242,56 +212,162 @@
       </form>
       <p class="composer-note">Lovelace is an AI and can make mistakes</p>
     </main>
+  </div>
 
-    <aside class="control-panel" id="rightPanel">
-      <div class="panel-body panel-body-right">
-        <section class="profile-card">
-          <div class="profile-head">
-            <div class="profile-avatar">AK</div>
-            <div>
-              <p class="profile-kicker">Profile</p>
-              <h2>Research Lead</h2>
-              <p class="profile-meta">Project Lovelace Workspace</p>
+  <!-- Account Management Dialog -->
+  <div class="account-overlay" id="accountOverlay">
+    <div class="account-dialog" id="accountDialog">
+      <div class="account-dialog-header">
+        <h2>Manage Account</h2>
+        <button class="account-dialog-close" id="accountDialogClose" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Section 1: Profile Details -->
+      <div class="account-section">
+        <div class="account-section-header">
+          <h3>Personal Information</h3>
+          <button class="account-edit-btn" id="profileEditBtn" type="button">Edit</button>
+        </div>
+
+        <div class="account-fields" id="profileFields">
+          <div class="account-field-row">
+            <div class="account-field">
+              <label>First Name</label>
+              <input type="text" id="acctFirstName" disabled>
+            </div>
+            <div class="account-field">
+              <label>Last Name</label>
+              <input type="text" id="acctLastName" disabled>
             </div>
           </div>
-        </section>
-
-        <section class="account-card">
-          <p class="profile-kicker">Account</p>
-          <div class="account-list">
-            <label class="account-item theme-toggle-container" for="themeToggleCheckbox" style="cursor: pointer;">
-              <span>Dark Mode</span>
-              <div class="theme-switch">
-                <input type="checkbox" id="themeToggleCheckbox" checked>
-                <span class="slider">
-                  <span class="thumb">
-                    <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                    <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                  </span>
-                </span>
-              </div>
-            </label>
-            <button class="account-item" type="button">
-              <span>Manage your account</span>
-              <span class="account-arrow">></span>
-            </button>
-            <button class="account-item" type="button">
-              <span>Sign out</span>
-              <span class="account-arrow">></span>
-            </button>
-            <button class="account-item" type="button">
-              <span>Privacy policy</span>
-              <span class="account-arrow">></span>
-            </button>
-            <button class="account-item" type="button">
-              <span>Terms of service</span>
-              <span class="account-arrow">></span>
-            </button>
+          <div class="account-field">
+            <label>Email Address</label>
+            <input type="email" id="acctEmail" disabled class="always-disabled">
           </div>
-        </section>
+          <div class="account-field">
+            <label>Date of Birth</label>
+            <div class="acct-dob-group">
+              <div class="acct-custom-select acct-dob-month" id="acctDobMonthSelect">
+                <div class="acct-custom-select-trigger" tabindex="0">
+                  <span class="acct-custom-select-value">Month</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                <div class="acct-custom-select-options">
+                  <div class="acct-custom-option" data-value="01">January</div>
+                  <div class="acct-custom-option" data-value="02">February</div>
+                  <div class="acct-custom-option" data-value="03">March</div>
+                  <div class="acct-custom-option" data-value="04">April</div>
+                  <div class="acct-custom-option" data-value="05">May</div>
+                  <div class="acct-custom-option" data-value="06">June</div>
+                  <div class="acct-custom-option" data-value="07">July</div>
+                  <div class="acct-custom-option" data-value="08">August</div>
+                  <div class="acct-custom-option" data-value="09">September</div>
+                  <div class="acct-custom-option" data-value="10">October</div>
+                  <div class="acct-custom-option" data-value="11">November</div>
+                  <div class="acct-custom-option" data-value="12">December</div>
+                </div>
+                <input type="hidden" id="acctDobMonth">
+              </div>
+              <input type="number" id="acctDobDay" placeholder="DD" min="1" max="31" disabled>
+              <input type="number" id="acctDobYear" placeholder="YYYY" min="1900" max="2026" disabled>
+            </div>
+          </div>
+          <div class="account-field">
+            <label>Gender</label>
+            <div class="acct-custom-select" id="acctGenderSelect">
+              <div class="acct-custom-select-trigger" tabindex="0">
+                <span class="acct-custom-select-value">Select gender</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+              <div class="acct-custom-select-options">
+                <div class="acct-custom-option" data-value="Male">Male</div>
+                <div class="acct-custom-option" data-value="Female">Female</div>
+                <div class="acct-custom-option" data-value="Transgender">Transgender</div>
+                <div class="acct-custom-option" data-value="Others">Others</div>
+                <div class="acct-custom-option" data-value="Prefer not to say">Prefer not to say</div>
+              </div>
+              <input type="hidden" id="acctGender">
+            </div>
+          </div>
+        </div>
 
+        <div class="account-actions" id="profileActions" hidden>
+          <button class="account-save-btn" id="profileSaveBtn" type="button">Save Changes</button>
+          <button class="account-cancel-btn" id="profileCancelBtn" type="button">Cancel</button>
+        </div>
       </div>
-    </aside>
+
+      <div class="account-divider"></div>
+
+      <!-- Section 2: Change Password -->
+      <div class="account-section">
+        <div class="account-section-header">
+          <h3>Change Password</h3>
+        </div>
+
+        <div class="account-fields">
+          <div class="account-field">
+            <label>Current Password</label>
+            <div class="acct-password-field">
+              <input type="password" id="acctCurrentPassword" placeholder="Enter current password">
+              <button class="acct-pw-toggle" type="button" data-target="acctCurrentPassword">Show</button>
+            </div>
+          </div>
+          <div class="account-field">
+            <label>New Password</label>
+            <div class="acct-password-field">
+              <input type="password" id="acctNewPassword" placeholder="Enter new password">
+              <button class="acct-pw-toggle" type="button" data-target="acctNewPassword">Show</button>
+            </div>
+          </div>
+          <div class="account-field">
+            <label>Confirm New Password</label>
+            <div class="acct-password-field">
+              <input type="password" id="acctConfirmPassword" placeholder="Confirm new password">
+              <button class="acct-pw-toggle" type="button" data-target="acctConfirmPassword">Show</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="account-actions">
+          <button class="account-save-btn" id="passwordSaveBtn" type="button">Update Password</button>
+        </div>
+      </div>
+
+      <p class="account-dialog-status" id="accountDialogStatus"></p>
+    </div>
+  </div>
+
+  <!-- Password Confirmation Dialog (for profile edits) -->
+  <div class="account-overlay" id="passwordConfirmOverlay">
+    <div class="account-dialog password-confirm-dialog">
+      <div class="account-dialog-header">
+        <h2>Confirm Your Identity</h2>
+        <button class="account-dialog-close" id="passwordConfirmClose" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <p class="password-confirm-desc">Enter your password to save profile changes.</p>
+      <div class="account-field">
+        <div class="acct-password-field">
+          <input type="password" id="confirmEditPassword" placeholder="Enter your password">
+          <button class="acct-pw-toggle" type="button" data-target="confirmEditPassword">Show</button>
+        </div>
+      </div>
+      <p class="account-dialog-status" id="passwordConfirmStatus"></p>
+      <div class="account-actions" style="margin-top: 12px;">
+        <button class="account-save-btn" id="confirmEditSaveBtn" type="button">Confirm & Save</button>
+        <button class="account-cancel-btn" id="confirmEditCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script>

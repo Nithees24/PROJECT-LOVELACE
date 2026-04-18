@@ -1,6 +1,5 @@
 const pageShell = document.getElementById("pageShell");
 const leftPanelToggle = document.getElementById("leftPanelToggle");
-const rightPanelToggle = document.getElementById("rightPanelToggle");
 const chatWindow = document.getElementById("chatWindow");
 const chatStage = document.getElementById("chatStage");
 const chatIntro = document.getElementById("chatIntro");
@@ -13,43 +12,72 @@ const sendButton = composer.querySelector(".send-button");
 const agentTrigger = document.getElementById("agentTrigger");
 const agentMenu = document.getElementById("agentMenu");
 const agentOption = document.querySelector(".agent-option[data-mode]");
+const accountPopover = document.getElementById("accountPopover");
+const profileMenuButton = document.getElementById("profileMenuButton");
+const profileMenu = document.getElementById("profileMenu");
 const historyItems = Array.from(document.querySelectorAll(".history-topic"));
 const historyMoreButtons = Array.from(document.querySelectorAll(".history-more"));
 
 const CHAT_MODE = "Chat Agent";
 const DEEP_MODE = "Deep Research";
 const API_ENDPOINT = (window.LOVELACE_CONFIG && window.LOVELACE_CONFIG.API_ENDPOINT) || "http://127.0.0.1:8000/api/chat";
+const CONV_API = "http://127.0.0.1:8000/api/conversations";
+const MSG_API = "http://127.0.0.1:8000/api/messages";
 
 // Check if user is logged in
 const userId = localStorage.getItem("lovelace_user_id");
 const userName = localStorage.getItem("lovelace_user_name");
 
 if (!userId) {
-  window.location.href = "login.html";
+  window.location.replace("login.html");
 }
 
-// Update user profile if element exists
-const userNameElement = document.querySelector(".profile-card h2");
-const userAvatarElement = document.querySelector(".profile-avatar");
-if (userNameElement && userName) {
-  userNameElement.textContent = userName;
-  if (userAvatarElement) {
-    userAvatarElement.textContent = userName.substring(0, 2).toUpperCase();
+const userNameElements = Array.from(document.querySelectorAll("[data-user-name]"));
+const userAvatarElements = Array.from(document.querySelectorAll("[data-user-avatar]"));
+
+const getInitials = (name) => {
+  const safeName = (name || "").trim();
+  if (!safeName) {
+    return "AK";
   }
-}
+
+  const parts = safeName.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+  }
+
+  return safeName.slice(0, 2).toUpperCase();
+};
+
+const updateUserIdentity = (name) => {
+  const displayName = (name || "").trim() || "Research Lead";
+  const initials = getInitials(displayName);
+
+  userNameElements.forEach((element) => {
+    element.textContent = displayName;
+  });
+
+  userAvatarElements.forEach((element) => {
+    element.textContent = initials;
+  });
+};
+
+updateUserIdentity(userName);
 
 // Sign out logic
-const signOutButton = Array.from(document.querySelectorAll(".account-item")).find(el => el.textContent.includes("Sign out"));
+const signOutButton = document.getElementById("signOutBtn");
 if (signOutButton) {
   signOutButton.addEventListener("click", () => {
+    closeAccountMenu();
     localStorage.removeItem("lovelace_user_id");
     localStorage.removeItem("lovelace_user_name");
-    window.location.href = "login.html";
+    window.location.replace("login.html");
   });
 }
 
 let activeMode = CHAT_MODE;
 let isSending = false;
+let activeSessionId = null;
 const conversationHistory = [];
 const LOVELACE_LOGO_SVG = `
   <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
@@ -63,38 +91,20 @@ const LOVELACE_LOGO_SVG = `
   </svg>
 `;
 
-const createPanelIcon = (side, collapsed) => {
-  if (side === "left") {
-    return collapsed
-      ? `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-          <path d="M9 5v14"></path>
-          <path d="M5 12h2"></path>
-        </svg>
-      `
-      : `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-          <path d="M9 5v14"></path>
-          <path d="M7 12H5"></path>
-        </svg>
-      `;
-  }
-
+const createPanelIcon = (collapsed) => {
   return collapsed
     ? `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-        <path d="M15 5v14"></path>
-        <path d="M19 12h-2"></path>
+        <path d="M9 5v14"></path>
+        <path d="M5 12h2"></path>
       </svg>
     `
     : `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-        <path d="M15 5v14"></path>
-        <path d="M17 12h2"></path>
+        <path d="M9 5v14"></path>
+        <path d="M7 12H5"></path>
       </svg>
     `;
 };
@@ -105,10 +115,11 @@ const autoResize = () => {
 };
 
 const initLoadAnimations = () => {
+  const brandMark = document.getElementById("brandMark");
   const revealTargets = [
+    ...document.querySelectorAll(".page-topbar > *"),
     ...document.querySelectorAll(".sidebar .panel-body > *"),
-    ...document.querySelectorAll(".chat-stage > .panel-controls, .chat-stage > .chat-intro, .chat-stage > .chat-window, .chat-stage > .composer, .chat-stage > .composer-note"),
-    ...document.querySelectorAll(".control-panel .panel-body > *")
+    ...document.querySelectorAll(".chat-stage > .chat-intro, .chat-stage > .chat-window, .chat-stage > .composer, .chat-stage > .composer-note")
   ];
 
   revealTargets.forEach((element, index) => {
@@ -119,6 +130,13 @@ const initLoadAnimations = () => {
   window.requestAnimationFrame(() => {
     document.body.classList.add("is-loaded");
   });
+
+  // Stop the logo loading animation after the page settle delay
+  if (brandMark) {
+    window.setTimeout(() => {
+      brandMark.classList.remove("is-loading");
+    }, 1800);
+  }
 };
 
 const createMessage = (role, content, options = {}) => {
@@ -158,7 +176,7 @@ const setComposerBusy = (busy) => {
   composer.classList.toggle("is-busy", busy);
 };
 
-const requestAssistantReply = async (message) => {
+const requestAssistantReply = async (message, sessionId) => {
   const response = await fetch(API_ENDPOINT, {
     method: "POST",
     headers: {
@@ -167,7 +185,7 @@ const requestAssistantReply = async (message) => {
     body: JSON.stringify({
       message,
       mode: activeMode,
-      conversation_id: parseInt(userId) || 1
+      conversation_id: sessionId
     })
   });
 
@@ -241,24 +259,32 @@ const animateLayoutShift = (element, firstRect, duration = 320) => {
 
 const syncPanelToggles = () => {
   const leftCollapsed = pageShell.classList.contains("left-collapsed");
-  const rightCollapsed = pageShell.classList.contains("right-collapsed");
 
   leftPanelToggle.classList.toggle("is-collapsed", leftCollapsed);
-  rightPanelToggle.classList.toggle("is-collapsed", rightCollapsed);
-
   leftPanelToggle.setAttribute("aria-label", leftCollapsed ? "Show left panel" : "Hide left panel");
   leftPanelToggle.setAttribute("title", leftCollapsed ? "Show left panel" : "Hide left panel");
-  rightPanelToggle.setAttribute("aria-label", rightCollapsed ? "Show right panel" : "Hide right panel");
-  rightPanelToggle.setAttribute("title", rightCollapsed ? "Show right panel" : "Hide right panel");
-
-  leftPanelToggle.innerHTML = createPanelIcon("left", leftCollapsed);
-  rightPanelToggle.innerHTML = createPanelIcon("right", rightCollapsed);
+  leftPanelToggle.innerHTML = createPanelIcon(leftCollapsed);
 };
 
 const closeAgentMenu = () => {
   agentMenu.hidden = true;
   agentTrigger.classList.remove("is-open");
   agentTrigger.setAttribute("aria-expanded", "false");
+};
+
+const closeAccountMenu = () => {
+  accountPopover.classList.remove("is-open");
+  profileMenuButton.setAttribute("aria-expanded", "false");
+  profileMenu.setAttribute("aria-hidden", "true");
+};
+
+const toggleAccountMenu = () => {
+  const isOpening = !accountPopover.classList.contains("is-open");
+  closeAgentMenu();
+  closeHistoryMenus();
+  accountPopover.classList.toggle("is-open", isOpening);
+  profileMenuButton.setAttribute("aria-expanded", String(isOpening));
+  profileMenu.setAttribute("aria-hidden", String(!isOpening));
 };
 
 const closeHistoryMenus = () => {
@@ -279,13 +305,13 @@ agentTrigger.addEventListener("click", () => {
   agentTrigger.setAttribute("aria-expanded", String(isOpening));
 });
 
-leftPanelToggle.addEventListener("click", () => {
-  pageShell.classList.toggle("left-collapsed");
-  syncPanelToggles();
+profileMenuButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleAccountMenu();
 });
 
-rightPanelToggle.addEventListener("click", () => {
-  pageShell.classList.toggle("right-collapsed");
+leftPanelToggle.addEventListener("click", () => {
+  pageShell.classList.toggle("left-collapsed");
   syncPanelToggles();
 });
 
@@ -377,6 +403,17 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".history-actions")) {
     closeHistoryMenus();
   }
+  if (!event.target.closest(".account-popover")) {
+    closeAccountMenu();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeAgentMenu();
+    closeHistoryMenus();
+    closeAccountMenu();
+  }
 });
 
 const parseMarkdown = (rawText) => {
@@ -389,30 +426,118 @@ const parseMarkdown = (rawText) => {
   return html;
 };
 
+// ===== Auto-scroll system =====
+let autoScrollEnabled = true;
+let lastScrollTop = 0;
+
+const scrollToBottomBtn = document.getElementById("scrollToBottomBtn");
+
+// If user manually scrolls up, pause auto-scroll. Resume when near bottom.
+chatWindow.addEventListener("scroll", () => {
+  let distFromBottom;
+  const currentScrollTop = chatWindow.scrollTop;
+  const isScrolledUp = currentScrollTop < lastScrollTop;
+  lastScrollTop = currentScrollTop;
+  const lastMessage = chatWindow.querySelector(".message:last-of-type");
+  
+  if (isSending && lastMessage) {
+    const windowRect = chatWindow.getBoundingClientRect();
+    const elementRect = lastMessage.getBoundingClientRect();
+    distFromBottom = elementRect.bottom - windowRect.bottom + 24;
+  } else {
+    distFromBottom = chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight;
+  }
+  
+  if (isScrolledUp) {
+    autoScrollEnabled = false;
+  } else if (distFromBottom < 15) {
+    autoScrollEnabled = true;
+  }
+  
+  if (distFromBottom > 180) {
+    scrollToBottomBtn.classList.add("is-visible");
+  } else {
+    scrollToBottomBtn.classList.remove("is-visible");
+  }
+}, { passive: true });
+
+scrollToBottomBtn.addEventListener("click", () => {
+  autoScrollEnabled = false;
+  scrollToBottom(true);
+  
+  // Wait for the smooth scroll to finish before re-enabling 
+  // the instant typeWriter cursor tracker, so it doesn't cancel the scroll animation.
+  setTimeout(() => {
+    autoScrollEnabled = true;
+  }, 450);
+});
+
+const scrollToBottom = (smooth = false) => {
+  const lastMessage = chatWindow.querySelector(".message:last-of-type");
+  
+  if (isSending && lastMessage) {
+    const windowRect = chatWindow.getBoundingClientRect();
+    const elementRect = lastMessage.getBoundingClientRect();
+    chatWindow.scrollBy({
+      top: elementRect.bottom - windowRect.bottom + 24,
+      behavior: smooth ? "smooth" : "instant"
+    });
+  } else {
+    chatWindow.scrollTo({
+      top: chatWindow.scrollHeight,
+      behavior: smooth ? "smooth" : "instant"
+    });
+  }
+};
+
+// Scroll new user message to the top of the chat viewport
+const scrollMessageToTop = (messageEl) => {
+  // Temporarily clear animations so we read true layout coordinates, not in-progress animation offsets
+  const prevAnim = messageEl.style.animation;
+  const prevTransform = messageEl.style.transform;
+  messageEl.style.animation = "none";
+  messageEl.style.transform = "none";
+  
+  const windowTop = chatWindow.getBoundingClientRect().top;
+  const msgTop = messageEl.getBoundingClientRect().top;
+  const offset = msgTop - windowTop;
+  
+  chatWindow.scrollBy({
+    top: offset - 32, // 32px padding to perfectly match the chat window's top padding for 1:1 symmetry across all bubbles
+    behavior: "smooth"
+  });
+  
+  // Restore animations seamlessly
+  messageEl.style.animation = prevAnim;
+  messageEl.style.transform = prevTransform;
+};
+
 const typeWriterEffect = async (element, text, speed = 20) => {
   element.innerHTML = "";
   const tokens = text.split(/(\s+)/);
+  let accumulated = "";
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (token === "") continue;
 
-    const span = document.createElement("span");
-    span.className = "tok";
-    span.textContent = token;
-    element.appendChild(span);
+    accumulated += token;
+    element.innerHTML = parseMarkdown(accumulated);
+
+    // Auto-scroll to follow the cursor while typing
+    if (autoScrollEnabled) {
+      const elementRect = element.getBoundingClientRect();
+      const windowRect = chatWindow.getBoundingClientRect();
+      if (elementRect.bottom > windowRect.bottom - 24) {
+        chatWindow.scrollTop += (elementRect.bottom - windowRect.bottom + 24);
+      }
+    }
 
     // Small pause only for visible words, not whitespace
     if (token.trim().length > 0) {
       await new Promise((resolve) => setTimeout(resolve, speed));
     }
   }
-
-  // Final pass: replace token spans with properly parsed markdown
-  const rawText = Array.from(element.querySelectorAll(".tok"))
-    .map((s) => s.textContent)
-    .join("");
-  element.innerHTML = parseMarkdown(rawText);
 };
 
 composer.addEventListener("submit", (event) => {
@@ -431,10 +556,17 @@ composer.addEventListener("submit", (event) => {
   const composerRect = composer.getBoundingClientRect();
   const introRect = wasEmpty ? chatIntro.getBoundingClientRect() : null;
   const userMessage = createMessage("user", value);
-  const pendingMessage = createMessage("assistant", "Lovelace is thinking...", { pending: true });
+  const pendingMessage = createMessage("assistant", "", { pending: true });
+
+  // Create a dynamic spacer to let the message scroll to the top
+  const scrollSpacer = document.createElement("div");
+  scrollSpacer.style.height = "65vh";
+  scrollSpacer.style.transition = "height 0.4s ease-out";
 
   chatWindow.append(userMessage);
   chatWindow.append(pendingMessage);
+  chatWindow.append(scrollSpacer);
+  
   conversationHistory.push({ role: "user", content: value });
   syncStageState();
 
@@ -450,30 +582,613 @@ composer.addEventListener("submit", (event) => {
     }, 300);
   }
 
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  // Always scroll the user's new message to the top
+  // so they can read the full response from the start
+  window.requestAnimationFrame(() => {
+    scrollMessageToTop(userMessage);
+  });
+
+  // Always re-enable auto-scroll when a new message is sent
+  autoScrollEnabled = true;
 
   promptInput.value = "";
   autoResize();
   setComposerBusy(true);
 
-  requestAssistantReply(value)
-    .then(async (reply) => {
-      pendingMessage.classList.remove("is-pending");
-      conversationHistory.push({ role: "assistant", content: reply });
-      await typeWriterEffect(pendingMessage.querySelector(".message-text"), reply);
-    })
-    .catch((error) => {
-      pendingMessage.classList.remove("is-pending");
-      pendingMessage.classList.add("is-error");
-      pendingMessage.querySelector(".message-text").textContent = error.message || "Something went wrong while contacting the backend.";
-    })
-    .finally(() => {
-      setComposerBusy(false);
-      promptInput.focus();
-    });
+  // If no active session, create one first
+  const ensureSession = async () => {
+    if (activeSessionId) return activeSessionId;
+    try {
+      const resp = await fetch(CONV_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: parseInt(userId) })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        activeSessionId = data.conversation_id;
+        // fetch list to show the new "New Conversation" in sidebar
+        await fetchConversations();
+        return activeSessionId;
+      }
+    } catch (err) {
+      console.error("Session creation failed:", err);
+    }
+    return 1; // last resort fallback
+  };
+
+  ensureSession().then(sessionId => {
+    requestAssistantReply(value, sessionId)
+      .then(async (reply) => {
+        pendingMessage.classList.remove("is-pending");
+        conversationHistory.push({ role: "assistant", content: reply });
+        
+        // If it was the first message, refresh sidebar to show the generated title
+        if (wasEmpty) {
+          fetchConversations();
+        }
+
+        await typeWriterEffect(pendingMessage.querySelector(".message-text"), reply);
+      })
+      .catch((error) => {
+        pendingMessage.classList.remove("is-pending");
+        pendingMessage.classList.add("is-error");
+        pendingMessage.querySelector(".message-text").textContent = error.message || "Something went wrong while contacting the backend.";
+      })
+      .finally(() => {
+        setComposerBusy(false);
+        promptInput.focus();
+        // Smoothly collapse the spacer padding to snap the chat down gracefully
+        window.requestAnimationFrame(() => {
+          scrollSpacer.style.height = "0px";
+          setTimeout(() => scrollSpacer.remove(), 400); // Wait for transition
+        });
+      });
+  });
 });
+
+// ===== Conversation History System =====
+const historyList = document.getElementById("historyList");
+const newChatBtn = document.getElementById("newChatBtn");
+
+const fetchConversations = async () => {
+  try {
+    const res = await fetch(`${CONV_API}/${userId}`);
+    const data = await res.json();
+    if (data.success) {
+      renderConversations(data.conversations);
+    }
+  } catch (err) {
+    console.error("Failed to fetch conversations:", err);
+  }
+};
+
+const renderConversations = (conversations) => {
+  if (!historyList) return;
+  historyList.innerHTML = "";
+
+  conversations.forEach((conv) => {
+    const row = document.createElement("div");
+    row.className = "history-row";
+    if (conv.id === activeSessionId) row.classList.add("active");
+
+    row.innerHTML = `
+      <button class="history-topic ${conv.id === activeSessionId ? "selected" : ""}" type="button" data-id="${conv.id}">
+        <span class="history-dot"></span>
+        <span class="history-title-text">${conv.title}</span>
+      </button>
+      <div class="history-actions">
+        <button class="history-more" type="button" aria-label="Conversation options" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="5" cy="10" r="1.5"></circle>
+            <circle cx="10" cy="10" r="1.5"></circle>
+            <circle cx="15" cy="10" r="1.5"></circle>
+          </svg>
+        </button>
+        <div class="history-menu" hidden>
+          <button type="button">Share conversation</button>
+          <button type="button">Pin</button>
+          <button type="button">Rename</button>
+          <button type="button">Delete</button>
+        </div>
+      </div>
+    `;
+
+    const topicBtn = row.querySelector(".history-topic");
+    topicBtn.addEventListener("click", () => {
+      if (isSending) return;
+      loadConversation(conv.id);
+    });
+
+    // Re-bind more button logic for dynamic elements
+    const moreBtn = row.querySelector(".history-more");
+    const menu = row.querySelector(".history-menu");
+    const renameBtn = menu.querySelector("button:nth-child(3)");
+    const deleteBtn = menu.querySelector("button:nth-child(4)");
+
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpening = menu.hidden;
+      closeHistoryMenus();
+      moreBtn.classList.toggle("is-open", isOpening);
+      moreBtn.setAttribute("aria-expanded", String(isOpening));
+      menu.hidden = !isOpening;
+    });
+
+    renameBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeHistoryMenus();
+      handleRenameConversation(conv.id, conv.title);
+    });
+
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeHistoryMenus();
+      handleDeleteConversation(conv.id);
+    });
+
+    historyList.appendChild(row);
+  });
+};
+
+const handleRenameConversation = async (sessionId, currentTitle) => {
+  const newTitle = window.prompt("Enter new title:", currentTitle);
+  if (!newTitle || newTitle.trim() === "" || newTitle === currentTitle) return;
+
+  try {
+    const res = await fetch(`${CONV_API}/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newTitle.trim() })
+    });
+    const data = await res.json();
+    if (data.success) {
+      fetchConversations();
+    }
+  } catch (err) {
+    console.error("Rename failed:", err);
+  }
+};
+
+const handleDeleteConversation = async (sessionId) => {
+  if (!window.confirm("Are you sure you want to delete this conversation?")) return;
+
+  try {
+    const res = await fetch(`${CONV_API}/${sessionId}`, {
+      method: "DELETE"
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (activeSessionId === sessionId) {
+        startNewChat();
+      }
+      fetchConversations();
+    }
+  } catch (err) {
+    console.error("Delete failed:", err);
+  }
+};
+
+
+const loadConversation = async (sessionId) => {
+  if (activeSessionId === sessionId) return;
+  activeSessionId = sessionId;
+  
+  // Update selection UI
+  const topics = historyList.querySelectorAll(".history-topic");
+  topics.forEach(t => {
+    t.classList.toggle("selected", parseInt(t.dataset.id) === sessionId);
+  });
+
+  chatWindow.innerHTML = "";
+  setComposerBusy(true);
+
+  try {
+    const res = await fetch(`${MSG_API}/${sessionId}`);
+    const data = await res.json();
+    if (data.success) {
+      data.messages.forEach(msg => {
+        const msgEl = createMessage(msg.role, msg.content);
+        chatWindow.append(msgEl);
+      });
+      syncStageState();
+      scrollToBottom();
+    }
+  } catch (err) {
+    console.error("Failed to load conversation:", err);
+  } finally {
+    setComposerBusy(false);
+  }
+};
+
+const startNewChat = () => {
+  if (isSending) return;
+  activeSessionId = null;
+  chatWindow.innerHTML = "";
+  syncStageState();
+  const topics = historyList.querySelectorAll(".history-topic");
+  topics.forEach(t => t.classList.remove("selected"));
+  promptInput.focus();
+};
+
+if (newChatBtn) {
+  newChatBtn.addEventListener("click", startNewChat);
+}
+
+// Initial fetch
+fetchConversations();
 
 setActiveMode(CHAT_MODE);
 syncPanelToggles();
 autoResize();
 initLoadAnimations();
+
+// ===== Account Management Dialog =====
+const AUTH_API = "http://127.0.0.1:8000/api/auth";
+
+const accountOverlay = document.getElementById("accountOverlay");
+const accountDialogClose = document.getElementById("accountDialogClose");
+const manageAccountBtn = document.getElementById("manageAccountBtn");
+const profileEditBtn = document.getElementById("profileEditBtn");
+const profileActions = document.getElementById("profileActions");
+const profileSaveBtn = document.getElementById("profileSaveBtn");
+const profileCancelBtn = document.getElementById("profileCancelBtn");
+const passwordSaveBtn = document.getElementById("passwordSaveBtn");
+const accountDialogStatus = document.getElementById("accountDialogStatus");
+
+const passwordConfirmOverlay = document.getElementById("passwordConfirmOverlay");
+const passwordConfirmClose = document.getElementById("passwordConfirmClose");
+const confirmEditSaveBtn = document.getElementById("confirmEditSaveBtn");
+const confirmEditCancelBtn = document.getElementById("confirmEditCancelBtn");
+const passwordConfirmStatus = document.getElementById("passwordConfirmStatus");
+
+const acctFirstName = document.getElementById("acctFirstName");
+const acctLastName = document.getElementById("acctLastName");
+const acctEmail = document.getElementById("acctEmail");
+const acctDobDay = document.getElementById("acctDobDay");
+const acctDobYear = document.getElementById("acctDobYear");
+const acctDobMonth = document.getElementById("acctDobMonth");
+const acctGenderHidden = document.getElementById("acctGender");
+
+const acctDobMonthSelect = document.getElementById("acctDobMonthSelect");
+const acctGenderSelect = document.getElementById("acctGenderSelect");
+
+// All custom selects inside account dialog
+const acctCustomSelects = document.querySelectorAll(".acct-custom-select");
+
+// Editable simple inputs (not email)
+const editableInputFields = [acctFirstName, acctLastName, acctDobDay, acctDobYear];
+
+let originalProfileData = {};
+
+// -- Custom Select Logic for Account Dialog --
+acctCustomSelects.forEach(customSelect => {
+  const trigger = customSelect.querySelector(".acct-custom-select-trigger");
+  const valueSpan = customSelect.querySelector(".acct-custom-select-value");
+  const options = customSelect.querySelectorAll(".acct-custom-option");
+  const hiddenInput = customSelect.querySelector("input[type='hidden']");
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (customSelect.classList.contains("disabled")) return;
+    // Close other open account selects
+    acctCustomSelects.forEach(s => {
+      if (s !== customSelect) s.classList.remove("open");
+    });
+    customSelect.classList.toggle("open");
+  });
+
+  options.forEach(option => {
+    option.addEventListener("click", function(e) {
+      e.stopPropagation();
+      options.forEach(opt => opt.classList.remove("selected"));
+      this.classList.add("selected");
+      customSelect.classList.remove("open");
+      customSelect.classList.add("selected");
+      valueSpan.textContent = this.textContent;
+      hiddenInput.value = this.dataset.value;
+    });
+  });
+});
+
+// Close account custom selects when clicking outside
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".acct-custom-select")) {
+    acctCustomSelects.forEach(s => s.classList.remove("open"));
+  }
+});
+
+// -- Helper: set custom select value programmatically --
+const setAcctCustomSelectValue = (selectEl, value) => {
+  const valueSpan = selectEl.querySelector(".acct-custom-select-value");
+  const options = selectEl.querySelectorAll(".acct-custom-option");
+  const hiddenInput = selectEl.querySelector("input[type='hidden']");
+  let found = false;
+
+  options.forEach(opt => {
+    opt.classList.remove("selected");
+    if (opt.dataset.value === value) {
+      opt.classList.add("selected");
+      valueSpan.textContent = opt.textContent;
+      hiddenInput.value = value;
+      selectEl.classList.add("selected");
+      found = true;
+    }
+  });
+
+  if (!found) {
+    // Reset to placeholder
+    hiddenInput.value = "";
+    selectEl.classList.remove("selected");
+    if (selectEl === acctDobMonthSelect) valueSpan.textContent = "Month";
+    else if (selectEl === acctGenderSelect) valueSpan.textContent = "Select gender";
+  }
+};
+
+// -- Helper: parse DOB string "YYYY-MM-DD" into parts --
+const parseDob = (dob) => {
+  if (!dob) return { month: "", day: "", year: "" };
+  const parts = dob.split("-");
+  return { year: parts[0] || "", month: parts[1] || "", day: parts[2] || "" };
+};
+
+// -- Helper: assemble DOB from parts --
+const assembleDob = () => {
+  const m = acctDobMonth.value;
+  let d = acctDobDay.value;
+  const y = acctDobYear.value;
+  if (d && d.length === 1) d = "0" + d;
+  return (m && d && y) ? `${y}-${m}-${d}` : "";
+};
+
+// -- Helper: set disabled state for custom selects --
+const setCustomSelectsDisabled = (disabled) => {
+  acctCustomSelects.forEach(s => {
+    if (disabled) {
+      s.classList.add("disabled");
+      s.classList.remove("open");
+    } else {
+      s.classList.remove("disabled");
+    }
+  });
+};
+
+// Password visibility toggles
+document.querySelectorAll(".acct-pw-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const input = document.getElementById(btn.dataset.target);
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+    btn.textContent = isPassword ? "Hide" : "Show";
+  });
+});
+
+const openAccountDialog = async () => {
+  closeAccountMenu();
+  accountDialogStatus.textContent = "";
+  resetProfileEdit();
+  clearPasswordFields();
+
+  // Fetch profile from API
+  try {
+    const res = await fetch(`${AUTH_API}/profile/${userId}`);
+    const data = await res.json();
+    if (data.error) {
+      accountDialogStatus.textContent = data.error;
+      accountDialogStatus.style.color = "#ff8d72";
+    } else {
+      acctFirstName.value = data.first_name || "";
+      acctLastName.value = data.last_name || "";
+      acctEmail.value = data.email || "";
+
+      const dob = parseDob(data.dob);
+      setAcctCustomSelectValue(acctDobMonthSelect, dob.month);
+      acctDobDay.value = dob.day ? parseInt(dob.day, 10) : "";
+      acctDobYear.value = dob.year || "";
+
+      setAcctCustomSelectValue(acctGenderSelect, data.gender || "");
+
+      originalProfileData = {
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
+        dob: data.dob || "",
+        gender: data.gender || ""
+      };
+    }
+  } catch {
+    accountDialogStatus.textContent = "Failed to load profile.";
+    accountDialogStatus.style.color = "#ff8d72";
+  }
+
+  accountOverlay.classList.add("is-open");
+};
+
+const closeAccountDialog = () => {
+  accountOverlay.classList.remove("is-open");
+  resetProfileEdit();
+};
+
+const resetProfileEdit = () => {
+  editableInputFields.forEach(f => f.disabled = true);
+  setCustomSelectsDisabled(true);
+  profileEditBtn.textContent = "Edit";
+  profileActions.hidden = true;
+};
+
+const clearPasswordFields = () => {
+  document.getElementById("acctCurrentPassword").value = "";
+  document.getElementById("acctNewPassword").value = "";
+  document.getElementById("acctConfirmPassword").value = "";
+  document.querySelectorAll(".acct-pw-toggle").forEach(btn => {
+    btn.textContent = "Show";
+    const input = document.getElementById(btn.dataset.target);
+    if (input) input.type = "password";
+  });
+};
+
+const setStatus = (el, msg, isError = false) => {
+  el.textContent = msg;
+  el.style.color = isError ? "#ff8d72" : "var(--lime)";
+};
+
+// -- Restore original profile values --
+const restoreOriginalProfile = () => {
+  acctFirstName.value = originalProfileData.first_name;
+  acctLastName.value = originalProfileData.last_name;
+  const dob = parseDob(originalProfileData.dob);
+  setAcctCustomSelectValue(acctDobMonthSelect, dob.month);
+  acctDobDay.value = dob.day ? parseInt(dob.day, 10) : "";
+  acctDobYear.value = dob.year || "";
+  setAcctCustomSelectValue(acctGenderSelect, originalProfileData.gender);
+};
+
+// Open dialog
+manageAccountBtn.addEventListener("click", openAccountDialog);
+
+// Close dialog
+accountDialogClose.addEventListener("click", closeAccountDialog);
+accountOverlay.addEventListener("click", (e) => {
+  if (e.target === accountOverlay) closeAccountDialog();
+});
+
+// Edit toggle
+profileEditBtn.addEventListener("click", () => {
+  const isEditing = !acctFirstName.disabled;
+  if (isEditing) {
+    restoreOriginalProfile();
+    resetProfileEdit();
+  } else {
+    editableInputFields.forEach(f => f.disabled = false);
+    setCustomSelectsDisabled(false);
+    profileEditBtn.textContent = "Cancel";
+    profileActions.hidden = false;
+    acctFirstName.focus();
+  }
+});
+
+// Cancel button in profile actions
+profileCancelBtn.addEventListener("click", () => {
+  restoreOriginalProfile();
+  resetProfileEdit();
+  accountDialogStatus.textContent = "";
+});
+
+// Save profile → open password confirmation
+profileSaveBtn.addEventListener("click", () => {
+  accountDialogStatus.textContent = "";
+  passwordConfirmStatus.textContent = "";
+  document.getElementById("confirmEditPassword").value = "";
+  passwordConfirmOverlay.classList.add("is-open");
+});
+
+// Close password confirmation
+passwordConfirmClose.addEventListener("click", () => {
+  passwordConfirmOverlay.classList.remove("is-open");
+});
+confirmEditCancelBtn.addEventListener("click", () => {
+  passwordConfirmOverlay.classList.remove("is-open");
+});
+passwordConfirmOverlay.addEventListener("click", (e) => {
+  if (e.target === passwordConfirmOverlay) passwordConfirmOverlay.classList.remove("is-open");
+});
+
+// Confirm & Save profile edits
+confirmEditSaveBtn.addEventListener("click", async () => {
+  const pw = document.getElementById("confirmEditPassword").value.trim();
+  if (!pw) {
+    setStatus(passwordConfirmStatus, "Please enter your password.", true);
+    return;
+  }
+
+  setStatus(passwordConfirmStatus, "Saving...", false);
+  passwordConfirmStatus.style.color = "var(--muted)";
+
+  const dob = assembleDob();
+
+  try {
+    const res = await fetch(`${AUTH_API}/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: parseInt(userId),
+        password: pw,
+        first_name: acctFirstName.value.trim(),
+        last_name: acctLastName.value.trim(),
+        dob: dob,
+        gender: acctGenderHidden.value
+      })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      setStatus(passwordConfirmStatus, data.error, true);
+    } else if (data.success) {
+      passwordConfirmOverlay.classList.remove("is-open");
+      setStatus(accountDialogStatus, "Profile updated successfully!", false);
+
+      // Update localStorage & sidebar
+      if (data.first_name) {
+        localStorage.setItem("lovelace_user_name", data.first_name);
+        updateUserIdentity(data.first_name);
+      }
+
+      originalProfileData = {
+        first_name: acctFirstName.value.trim(),
+        last_name: acctLastName.value.trim(),
+        dob: dob,
+        gender: acctGenderHidden.value
+      };
+
+      resetProfileEdit();
+    }
+  } catch {
+    setStatus(passwordConfirmStatus, "Network error. Please try again.", true);
+  }
+});
+
+// Change Password
+passwordSaveBtn.addEventListener("click", async () => {
+  const currentPw = document.getElementById("acctCurrentPassword").value.trim();
+  const newPw = document.getElementById("acctNewPassword").value.trim();
+  const confirmPw = document.getElementById("acctConfirmPassword").value.trim();
+
+  if (!currentPw || !newPw || !confirmPw) {
+    setStatus(accountDialogStatus, "Please fill in all password fields.", true);
+    return;
+  }
+
+  if (newPw !== confirmPw) {
+    setStatus(accountDialogStatus, "New passwords do not match.", true);
+    return;
+  }
+
+  if (newPw.length < 6) {
+    setStatus(accountDialogStatus, "New password must be at least 6 characters.", true);
+    return;
+  }
+
+  setStatus(accountDialogStatus, "Updating password...", false);
+  accountDialogStatus.style.color = "var(--muted)";
+
+  try {
+    const res = await fetch(`${AUTH_API}/change-password`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: parseInt(userId),
+        current_password: currentPw,
+        new_password: newPw
+      })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      setStatus(accountDialogStatus, data.error, true);
+    } else if (data.success) {
+      setStatus(accountDialogStatus, "Password updated successfully!", false);
+      clearPasswordFields();
+    }
+  } catch {
+    setStatus(accountDialogStatus, "Network error. Please try again.", true);
+  }
+});

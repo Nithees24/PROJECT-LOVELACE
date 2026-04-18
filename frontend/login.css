@@ -34,7 +34,7 @@
 html,
 body {
   min-height: 100%;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -75,7 +75,8 @@ button {
 .login-page {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
   padding: 16px 18px;
 }
 
@@ -110,6 +111,7 @@ button {
 .topbar {
   max-width: 1280px;
   margin: 0 auto 12px;
+  padding-top: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -316,12 +318,13 @@ html.theme-transition::view-transition-new(root) {
 
 .login-shell {
   max-width: 1200px;
-  height: calc(100vh - 92px);
+  height: calc(100dvh - 92px);
   margin: 0 auto;
   display: grid;
-  align-items: center;
-  grid-template-columns: 1fr 400px;
-  gap: 100px;
+  align-items: start;
+  padding-top: 2vh;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 460px);
+  gap: 72px;
 }
 
 .hero-panel {
@@ -329,7 +332,11 @@ html.theme-transition::view-transition-new(root) {
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
-  padding: 28px 28px 28px 0;
+  padding: 80px 28px 28px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 50vh;
 }
 
 .auth-panel {
@@ -340,7 +347,12 @@ html.theme-transition::view-transition-new(root) {
   box-shadow: var(--shadow);
   backdrop-filter: blur(24px);
   position: relative;
-  transition: height 0.4s ease;
+  width: min(100%, 460px);
+  min-height: 0;
+  max-height: none;
+  justify-self: end;
+  margin-top: -20px;
+  transition: height 0.4s ease, width 0.2s ease;
 }
 
 :root[data-theme="light"] .auth-panel {
@@ -352,6 +364,7 @@ html.theme-transition::view-transition-new(root) {
 .auth-box-inner {
   position: relative;
   width: 100%;
+  min-height: 0;
 }
 
 .auth-view {
@@ -359,11 +372,12 @@ html.theme-transition::view-transition-new(root) {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 40px 48px;
+  min-height: 0;
+  padding: 28px 30px 34px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 24px;
+  justify-content: flex-start;
+  gap: 16px;
   opacity: 0;
   pointer-events: none;
   transform: translateX(20px);
@@ -375,8 +389,10 @@ html.theme-transition::view-transition-new(root) {
 .auth-panel.step-3 .signup-name-view,
 .auth-panel.step-4 .signup-password-view,
 .auth-panel.step-5 .signup-details-view,
-.auth-panel.step-6 .success-view,
-.auth-panel.step-7 .error-view {
+.auth-panel.step-6 #successView,
+.auth-panel.step-7 #errorView,
+.auth-panel.step-8 #loginSuccessView,
+.auth-panel.step-9 #loginErrorView {
   position: relative;
   opacity: 1;
   pointer-events: all;
@@ -385,6 +401,8 @@ html.theme-transition::view-transition-new(root) {
 
 .auth-copy {
   margin: 0;
+  display: grid;
+  gap: 10px;
 }
 
 .auth-copy.with-back {
@@ -432,6 +450,7 @@ h1 {
   max-width: 12ch;
   font-size: clamp(2.5rem, 4vw, 4.5rem);
   line-height: 0.95;
+  margin-bottom: 24px;
 }
 
 h2 {
@@ -439,23 +458,25 @@ h2 {
   line-height: 1;
 }
 
-.hero-copy,
+.hero-copy {
+  margin-top: 10px;
+  max-width: 65ch;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  display: block;
+  opacity: 0.9;
+}
+
 .auth-copy p:last-child {
   margin-top: 10px;
-  max-width: 56ch;
+  max-width: 36ch;
   font-size: 0.94rem;
   line-height: 1.5;
 }
 
-
-
-.auth-copy p:last-child {
-  max-width: 36ch;
-}
-
 .auth-actions {
   display: grid;
-  gap: 4px;
+  gap: 14px;
 }
 
 .social-button {
@@ -467,6 +488,8 @@ h2 {
   border: none;
   background: transparent;
   color: var(--text);
+  border-radius: 16px;
+  border: 1px solid var(--line);
 }
 
 .social-icon {
@@ -481,6 +504,10 @@ h2 {
 
 :root[data-theme="dark"] .social-icon {
   background: white; /* Maintain white background for logo clarity in dark mode */
+}
+
+.apple-auth .social-icon {
+  color: #111111;
 }
 
 .divider {
@@ -502,12 +529,12 @@ h2 {
 
 .auth-form {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .field-row {
@@ -607,21 +634,55 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(24px);
-  z-index: 10;
+  z-index: 100;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-10px);
   transition: opacity 0.2s ease, transform 0.2s ease;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 200px;
+  overflow: hidden auto;
+  max-height: 280px;
+  /* Keep the scrollbar visually inside the rounded dropdown */
+  scrollbar-gutter: stable;
+  padding-right: 4px;
+  scrollbar-width: thin; /* Firefox */
+  /* Softer, less-visible scrollbar in Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Modern Scrollbar Styling */
+.custom-select-options::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-select-options::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.custom-select-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+:root[data-theme="light"] .custom-select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root[data-theme="light"] .custom-select-options::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="light"] .custom-select-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme="light"] .custom-select-options {
-  background: #f8f3e8;
-  border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+  scrollbar-color: rgba(0, 0, 0, 0.22) transparent;
 }
 
 .custom-select.open .custom-select-options {
@@ -710,13 +771,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .primary-button {
   width: 100%;
-  padding: 11px 14px;
+  padding: 10px 14px;
   border: 0;
   border-radius: 18px;
   background: linear-gradient(135deg, var(--accent) 0%, #ef8f5f 100%);
   color: #fffaf4;
   font-weight: 600;
   box-shadow: 0 16px 30px rgba(219, 111, 73, 0.22);
+}
+
+.signup-details-view .auth-form {
+  gap: 12px;
 }
 
 .signup-toggle {
@@ -737,9 +802,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .status-message {
   position: absolute;
-  bottom: 20px;
+  bottom: 24px;
   left: 40px;
   right: 40px;
+  min-height: 20px;
   font-size: 0.82rem;
   line-height: 1.4;
   text-align: center;
@@ -764,17 +830,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .login-shell {
     grid-template-columns: 1fr;
     height: auto;
+    gap: 36px;
   }
 
   .hero-panel h1 {
     max-width: 14ch;
+  }
+
+  .auth-panel {
+    justify-self: stretch;
+    width: min(100%, 520px);
   }
 }
 
 @media (max-width: 760px) {
   .login-page {
     padding: 16px;
-    overflow-y: auto;
+    overflow-y: hidden;
   }
 
   .topbar {
@@ -790,8 +862,96 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     padding: 24px;
   }
 
-  .hero-grid {
-    grid-template-columns: 1fr;
+  .auth-panel {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .auth-box-inner {
+    min-height: auto;
+  }
+
+  .auth-view {
+    position: relative;
+    min-height: auto;
+    padding: 24px 20px 28px;
+    justify-content: flex-start;
+    gap: 14px;
+  }
+
+  .auth-panel.step-1 .login-view,
+  .auth-panel.step-1 .signup-name-view,
+  .auth-panel.step-1 .signup-password-view,
+  .auth-panel.step-1 .signup-details-view,
+  .auth-panel.step-1 #successView,
+  .auth-panel.step-1 #errorView,
+  .auth-panel.step-1 #loginSuccessView,
+  .auth-panel.step-1 #loginErrorView,
+  .auth-panel.step-2 .identifier-view,
+  .auth-panel.step-2 .signup-name-view,
+  .auth-panel.step-2 .signup-password-view,
+  .auth-panel.step-2 .signup-details-view,
+  .auth-panel.step-2 #successView,
+  .auth-panel.step-2 #errorView,
+  .auth-panel.step-2 #loginSuccessView,
+  .auth-panel.step-2 #loginErrorView,
+  .auth-panel.step-3 .identifier-view,
+  .auth-panel.step-3 .login-view,
+  .auth-panel.step-3 .signup-password-view,
+  .auth-panel.step-3 .signup-details-view,
+  .auth-panel.step-3 #successView,
+  .auth-panel.step-3 #errorView,
+  .auth-panel.step-3 #loginSuccessView,
+  .auth-panel.step-3 #loginErrorView,
+  .auth-panel.step-4 .identifier-view,
+  .auth-panel.step-4 .login-view,
+  .auth-panel.step-4 .signup-name-view,
+  .auth-panel.step-4 .signup-details-view,
+  .auth-panel.step-4 #successView,
+  .auth-panel.step-4 #errorView,
+  .auth-panel.step-4 #loginSuccessView,
+  .auth-panel.step-4 #loginErrorView,
+  .auth-panel.step-5 .identifier-view,
+  .auth-panel.step-5 .login-view,
+  .auth-panel.step-5 .signup-name-view,
+  .auth-panel.step-5 .signup-password-view,
+  .auth-panel.step-5 #successView,
+  .auth-panel.step-5 #errorView,
+  .auth-panel.step-5 #loginSuccessView,
+  .auth-panel.step-5 #loginErrorView,
+  .auth-panel.step-6 .identifier-view,
+  .auth-panel.step-6 .login-view,
+  .auth-panel.step-6 .signup-name-view,
+  .auth-panel.step-6 .signup-password-view,
+  .auth-panel.step-6 .signup-details-view,
+  .auth-panel.step-6 #errorView,
+  .auth-panel.step-6 #loginSuccessView,
+  .auth-panel.step-6 #loginErrorView,
+  .auth-panel.step-7 .identifier-view,
+  .auth-panel.step-7 .login-view,
+  .auth-panel.step-7 .signup-name-view,
+  .auth-panel.step-7 .signup-password-view,
+  .auth-panel.step-7 .signup-details-view,
+  .auth-panel.step-7 #successView,
+  .auth-panel.step-7 #loginSuccessView,
+  .auth-panel.step-7 #loginErrorView,
+  .auth-panel.step-8 .identifier-view,
+  .auth-panel.step-8 .login-view,
+  .auth-panel.step-8 .signup-name-view,
+  .auth-panel.step-8 .signup-password-view,
+  .auth-panel.step-8 .signup-details-view,
+  .auth-panel.step-8 #successView,
+  .auth-panel.step-8 #errorView,
+  .auth-panel.step-8 #loginErrorView,
+  .auth-panel.step-9 .identifier-view,
+  .auth-panel.step-9 .login-view,
+  .auth-panel.step-9 .signup-name-view,
+  .auth-panel.step-9 .signup-password-view,
+  .auth-panel.step-9 .signup-details-view,
+  .auth-panel.step-9 #successView,
+  .auth-panel.step-9 #errorView,
+  .auth-panel.step-9 #loginSuccessView {
+    position: absolute;
   }
 
   .form-meta {
@@ -852,3 +1012,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   from { transform: scale(0); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+#identifierForm {
+  gap: 20px;
+}
+
+/* Slightly lower the Create account button in Step 5 (Signup Details) */
+#signupDetailsView #signupSubmitBtn {
+  margin-top: 6px;
+}
+
