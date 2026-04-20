@@ -22,3 +22,15 @@ venv/
 # Build files
 build/
 dist/
+
+# VS Code and Antigravity Editor files
+.vscode/
+.antigravity/
+
+# Database files (if your project uses a local database)
+*.sqlite3
+*.db
+*.sqlite
+
+# Frontend Dependencies (if your website uses JavaScript/Node.js for the frontend)
+node_modules/
