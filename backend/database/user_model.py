@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from datetime import datetime
 from backend.database.connection import Base
 
@@ -14,4 +14,6 @@ class User(Base):
     age = Column(Integer, nullable=True)
     dob = Column(String, nullable=True)
     gender = Column(String, nullable=True)
+    is_verified = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

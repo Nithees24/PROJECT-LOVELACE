@@ -163,8 +163,9 @@
                 <span>Password</span>
                 <div class="password-field">
                   <input type="password" id="passwordInput" placeholder="Enter your password" required>
-                  <button class="password-toggle" id="passwordToggle" type="button"
-                    aria-label="Show password">Show</button>
+                  <button class="password-toggle" id="passwordToggle" type="button" aria-label="Toggle password visibility">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
                 </div>
               </label>
 
@@ -226,14 +227,18 @@
                 <span>Password</span>
                 <div class="password-field">
                   <input type="password" id="signupPasswordInput" placeholder="Create password" required>
-                  <button class="password-toggle" id="signupPasswordToggle" type="button">Show</button>
+                  <button class="password-toggle" id="signupPasswordToggle" type="button" aria-label="Toggle password visibility">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
                 </div>
               </label>
               <label class="field">
                 <span>Confirm Password</span>
                 <div class="password-field">
                   <input type="password" id="signupConfirmPasswordInput" placeholder="Confirm password" required>
-                  <button class="password-toggle" id="signupConfirmPasswordToggle" type="button">Show</button>
+                  <button class="password-toggle" id="signupConfirmPasswordToggle" type="button" aria-label="Toggle password visibility">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
                 </div>
               </label>
               <button class="primary-button" id="signupPasswordNextBtn" type="submit">Continue</button>
@@ -329,8 +334,9 @@
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
               </div>
-              <h2>Account Created!</h2>
-              <p>Your research workspace is ready. Routing you to login...</p>
+              <h2>Check your email!</h2>
+              <p id="signupSuccessMsg">We've sent a verification link to your email. Please confirm your address to activate your research workspace.</p>
+              <button class="primary-button" onclick="setStep(2)" style="margin-top: 24px; width: auto; padding-inline: 32px;">Back to Login</button>
             </div>
           </div>
 
