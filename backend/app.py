@@ -12,10 +12,8 @@ from backend.database import conversation_model
 from backend.database.user_model import User
 from backend.database.connection import SessionLocal
 import hashlib
-import uuid
 from backend.database.message_repo import save_message, get_messages
-from backend.config import CHAT_MODEL, BASE_URL
-from backend.utils.email_utils import send_verification_email
+from backend.config import CHAT_MODEL
 
 def get_conversation_history(db, conversation_id):
     messages = get_messages(db, conversation_id)
@@ -93,8 +91,6 @@ def register(req: SignupRequest):
             except ValueError:
                 pass # Fallback if date is invalid
 
-        verification_token = str(uuid.uuid4())
-        
         new_user = User(
             email=req.email,
             password_hash=hash_password(req.password),
@@ -103,45 +99,11 @@ def register(req: SignupRequest):
             role=req.role,
             age=calculated_age,
             dob=req.dob,
-            gender=req.gender,
-            is_verified=False,
-            verification_token=verification_token
+            gender=req.gender
         )
         db.add(new_user)
         db.commit()
-        
-        # Send verification email
-        send_verification_email(req.email, verification_token, BASE_URL)
-        
-        return {"success": True, "message": "User created successfully. Please check your email to verify your account."}
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
-
-@app.get("/api/auth/verify/{token}")
-def verify_email(token: str):
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.verification_token == token).first()
-        if not user:
-            return {"error": "Invalid or expired verification token"}
-        
-        user.is_verified = True
-        user.verification_token = None # Clear token once verified
-        db.commit()
-        
-        # In a real app, you might want to redirect to a 'success' page
-        from fastapi.responses import HTMLResponse
-        return HTMLResponse(content=f"""
-            <html>
-                <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-                    <h2 style="color: #20312d;">Email Verified Successfully!</h2>
-                    <p>Your account is now active. You can now log in to Project Lovelace.</p>
-                    <a href="/" style="color: #d95f39; font-weight: bold;">Return to Login</a>
-                </body>
-            </html>
-        """)
+        return {"success": True, "message": "User created successfully"}
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -157,9 +119,6 @@ def login(req: LoginRequest):
         
         if user.password_hash != hash_password(req.password):
             return {"error": "Incorrect password"}
-        
-        if not user.is_verified:
-            return {"error": "Please verify your email address before logging in."}
             
         return {"success": True, "user_id": user.id, "first_name": user.first_name}
     except Exception as e:
