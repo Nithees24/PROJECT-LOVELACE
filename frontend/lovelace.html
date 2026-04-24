@@ -103,7 +103,8 @@
           <div class="brand-text">
             <p class="eyebrow">Project Lovelace</p>
             <h1>Lovelace</h1>
-            <p class="brand-copy">Agentic AI workspace for scientific thinking, discovery, and structured answers.</p>
+
+            <p class="brand-copy">Agentic AI workspace for scientific thinking, discovery, and structured answers.</p>
           </div>
         </div>
 
@@ -366,6 +367,36 @@
       <div class="account-actions" style="margin-top: 12px;">
         <button class="account-save-btn" id="confirmEditSaveBtn" type="button">Confirm & Save</button>
         <button class="account-cancel-btn" id="confirmEditCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic Confirmation Dialog -->
+  <div class="account-overlay" id="confirmOverlay">
+    <div class="account-dialog minimal-dialog">
+      <div class="account-dialog-header">
+        <h2 id="confirmTitle">Confirm Action</h2>
+      </div>
+      <p class="password-confirm-desc" id="confirmDescription">Are you sure?</p>
+      <div class="account-actions" style="margin-top: 20px;">
+        <button class="account-save-btn" id="confirmBtn" type="button">Confirm</button>
+        <button class="account-cancel-btn" id="confirmCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic Prompt Dialog -->
+  <div class="account-overlay" id="promptOverlay">
+    <div class="account-dialog minimal-dialog">
+      <div class="account-dialog-header">
+        <h2 id="promptTitle">Enter value</h2>
+      </div>
+      <div class="account-field" style="margin-top: 10px;">
+        <input type="text" id="promptInputBox" placeholder="">
+      </div>
+      <div class="account-actions" style="margin-top: 20px;">
+        <button class="account-save-btn" id="promptBtn" type="button">Save</button>
+        <button class="account-cancel-btn" id="promptCancelBtn" type="button">Cancel</button>
       </div>
     </div>
   </div>

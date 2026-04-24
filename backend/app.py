@@ -12,7 +12,10 @@ from backend.database import conversation_model
 from backend.database.user_model import User
 from backend.database.connection import SessionLocal
 import hashlib
+import uuid
 from backend.database.message_repo import save_message, get_messages
+from backend.config import CHAT_MODEL, BASE_URL
+from backend.utils.email_utils import send_verification_email
 
 def get_conversation_history(db, conversation_id):
     messages = get_messages(db, conversation_id)
@@ -90,6 +93,8 @@ def register(req: SignupRequest):
             except ValueError:
                 pass # Fallback if date is invalid
 
+        verification_token = str(uuid.uuid4())
+        
         new_user = User(
             email=req.email,
             password_hash=hash_password(req.password),
@@ -98,11 +103,45 @@ def register(req: SignupRequest):
             role=req.role,
             age=calculated_age,
             dob=req.dob,
-            gender=req.gender
+            gender=req.gender,
+            is_verified=False,
+            verification_token=verification_token
         )
         db.add(new_user)
         db.commit()
-        return {"success": True, "message": "User created successfully"}
+        
+        # Send verification email
+        send_verification_email(req.email, verification_token, BASE_URL)
+        
+        return {"success": True, "message": "User created successfully. Please check your email to verify your account."}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+@app.get("/api/auth/verify/{token}")
+def verify_email(token: str):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.verification_token == token).first()
+        if not user:
+            return {"error": "Invalid or expired verification token"}
+        
+        user.is_verified = True
+        user.verification_token = None # Clear token once verified
+        db.commit()
+        
+        # In a real app, you might want to redirect to a 'success' page
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=f"""
+            <html>
+                <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                    <h2 style="color: #20312d;">Email Verified Successfully!</h2>
+                    <p>Your account is now active. You can now log in to Project Lovelace.</p>
+                    <a href="/" style="color: #d95f39; font-weight: bold;">Return to Login</a>
+                </body>
+            </html>
+        """)
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -118,6 +157,9 @@ def login(req: LoginRequest):
         
         if user.password_hash != hash_password(req.password):
             return {"error": "Incorrect password"}
+        
+        if not user.is_verified:
+            return {"error": "Please verify your email address before logging in."}
             
         return {"success": True, "user_id": user.id, "first_name": user.first_name}
     except Exception as e:
@@ -234,11 +276,22 @@ def create_conversation(req: CreateConversationRequest):
 def get_user_conversations(user_id: int):
     db = SessionLocal()
     try:
-        conversations = db.query(Conversation).filter(Conversation.user_id == user_id).order_by(Conversation.created_at.desc()).all()
+        conversations = db.query(Conversation).filter(
+            Conversation.user_id == user_id
+        ).order_by(
+            Conversation.is_pinned.desc(),
+            Conversation.pinned_at.desc().nullslast(),
+            Conversation.created_at.desc()
+        ).all()
         return {
             "success": True, 
             "conversations": [
-                {"id": c.id, "title": c.title, "created_at": c.created_at.isoformat()} for c in conversations
+                {
+                    "id": c.id,
+                    "title": c.title,
+                    "created_at": c.created_at.isoformat(),
+                    "is_pinned": c.is_pinned
+                } for c in conversations
             ]
         }
     except Exception as e:
@@ -246,14 +299,33 @@ def get_user_conversations(user_id: int):
     finally:
         db.close()
 
+@app.post("/api/conversations/{conversation_id}/pin")
+def toggle_pin_conversation(conversation_id: int):
+    db = SessionLocal()
+    try:
+        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if not conv:
+            return {"error": "Conversation not found"}
+        conv.is_pinned = not conv.is_pinned
+        conv.pinned_at = datetime.utcnow() if conv.is_pinned else None
+        db.commit()
+        return {"success": True, "is_pinned": conv.is_pinned}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
 def generate_thread_title(first_prompt: str):
     try:
-        # Simple concise prompt for title generation
-        prompt = f"Summarize the following user request into a very concise 2-4 word title for a chat thread. Return ONLY the title text, no quotes or punctuation: {first_prompt}"
+        # Generate an expressive and unique title
+        prompt = f"Create a concise, unique, and highly descriptive 3-6 word title for a chat thread starting with this user request. Avoid generic starting words like 'Understanding', 'Exploring', or 'A Guide to'. Tailor the title specifically to the topic. Return ONLY the title text, no quotes or punctuation: {first_prompt}"
         title = llm_client.generate(prompt, model=CHAT_MODEL)
-        return title.strip()
-    except:
+        # Remove quotes if the LLM adds them anyway
+        title = title.strip().strip('\"\'')
+        return title
+    except Exception as e:
         # Fallback to snippet if LLM fails
+        print(f"Failed to generate title: {e}")
         return first_prompt[:30] + "..." if len(first_prompt) > 30 else first_prompt
 
 @app.get("/api/messages/{conversation_id}")
@@ -297,10 +369,15 @@ def delete_conversation(conversation_id: int):
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
         if not conv:
             return {"error": "Conversation not found"}
+        
+        from backend.database.message_model import Message
+        db.query(Message).filter(Message.conversation_id == conversation_id).delete()
+        
         db.delete(conv)
         db.commit()
         return {"success": True}
     except Exception as e:
+        db.rollback()
         return {"error": str(e)}
     finally:
         db.close()

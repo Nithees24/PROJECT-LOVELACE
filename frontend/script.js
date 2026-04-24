@@ -17,6 +17,17 @@ const profileMenuButton = document.getElementById("profileMenuButton");
 const profileMenu = document.getElementById("profileMenu");
 const historyItems = Array.from(document.querySelectorAll(".history-topic"));
 const historyMoreButtons = Array.from(document.querySelectorAll(".history-more"));
+const confirmOverlay = document.getElementById("confirmOverlay");
+const confirmTitle = document.getElementById("confirmTitle");
+const confirmDescription = document.getElementById("confirmDescription");
+const confirmBtn = document.getElementById("confirmBtn");
+const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+
+const promptOverlay = document.getElementById("promptOverlay");
+const promptTitle = document.getElementById("promptTitle");
+const promptInputBox = document.getElementById("promptInputBox");
+const promptCancelBtn = document.getElementById("promptCancelBtn");
+const promptBtn = document.getElementById("promptBtn");
 
 const CHAT_MODE = "Chat Agent";
 const DEEP_MODE = "Deep Research";
@@ -155,7 +166,12 @@ const createMessage = (role, content, options = {}) => {
 
   const body = document.createElement("div");
   body.className = "message-text";
-  body.textContent = content;
+
+  if (role === "assistant") {
+    body.innerHTML = parseMarkdown(content || "");
+  } else {
+    body.textContent = content;
+  }
 
   if (role === "assistant") {
     const avatar = document.createElement("div");
@@ -288,12 +304,15 @@ const toggleAccountMenu = () => {
 };
 
 const closeHistoryMenus = () => {
-  historyMoreButtons.forEach((button) => {
+  document.querySelectorAll(".history-more").forEach((button) => {
     const menu = button.parentElement.querySelector(".history-menu");
     button.classList.remove("is-open");
     button.setAttribute("aria-expanded", "false");
     if (menu) {
       menu.hidden = true;
+      menu.classList.remove("open-upwards");
+      const row = button.closest(".history-row");
+      if (row) row.style.zIndex = "";
     }
   });
 };
@@ -368,6 +387,12 @@ historyMoreButtons.forEach((button) => {
     closeHistoryMenus();
     button.classList.toggle("is-open", isOpening);
     button.setAttribute("aria-expanded", String(isOpening));
+    if (isOpening) {
+      const rect = button.getBoundingClientRect();
+      if (window.innerHeight - rect.bottom < 180) {
+        menu.classList.add("open-upwards");
+      }
+    }
     menu.hidden = !isOpening;
   });
 });
@@ -417,10 +442,13 @@ document.addEventListener("keydown", (event) => {
 });
 
 const parseMarkdown = (rawText) => {
+  if (!rawText) return "";
   let html = rawText;
-  html = html.replace(/^### (.*$)/gim, '<h3 style="margin: 0.5em 0;">$1</h3>');
-  html = html.replace(/^## (.*$)/gim, '<h2 style="margin: 0.5em 0;">$1</h2>');
-  html = html.replace(/^# (.*$)/gim, '<h1 style="margin: 0.5em 0;">$1</h1>');
+  // Use [^\n\r]+ to robustly match until the end of the line, handling \r or \n.
+  html = html.replace(/^###\s+([^\n\r]+)/gim, '<h3 style="margin: 0.5em 0;">$1</h3>');
+  html = html.replace(/^##\s+([^\n\r]+)/gim, '<h2 style="margin: 0.5em 0;">$1</h2>');
+  html = html.replace(/^#\s+([^\n\r]+)/gim, '<h1 style="margin: 0.5em 0;">$1</h1>');
+  html = html.replace(/^(\*\*\*|---)[\s]*$/gim, '<hr style="border: 0; border-top: 1px solid var(--line); margin: 1.5em 0;">');
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\n/g, '<br>');
   return html;
@@ -538,6 +566,69 @@ const typeWriterEffect = async (element, text, speed = 20) => {
       await new Promise((resolve) => setTimeout(resolve, speed));
     }
   }
+};
+
+const showConfirmDialog = (title, description, confirmText = "Confirm") => {
+  return new Promise((resolve) => {
+    confirmTitle.textContent = title;
+    confirmDescription.textContent = description;
+    confirmBtn.textContent = confirmText;
+    confirmOverlay.classList.add("is-open");
+
+    const cleanup = (result) => {
+      confirmOverlay.classList.remove("is-open");
+      confirmBtn.removeEventListener("click", onConfirm);
+      confirmCancelBtn.removeEventListener("click", onCancel);
+      confirmOverlay.removeEventListener("click", onOverlayClick);
+      resolve(result);
+    };
+
+    const onConfirm = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onOverlayClick = (e) => {
+      if (e.target === confirmOverlay) cleanup(false);
+    };
+
+    confirmBtn.addEventListener("click", onConfirm);
+    confirmCancelBtn.addEventListener("click", onCancel);
+    confirmOverlay.addEventListener("click", onOverlayClick);
+  });
+};
+
+const showPromptDialog = (title, defaultValue = "", confirmText = "Save") => {
+  return new Promise((resolve) => {
+    promptTitle.textContent = title;
+    promptInputBox.value = defaultValue;
+    promptBtn.textContent = confirmText;
+    promptOverlay.classList.add("is-open");
+    promptInputBox.focus();
+
+    const cleanup = (result) => {
+      promptOverlay.classList.remove("is-open");
+      promptBtn.removeEventListener("click", onConfirm);
+      promptCancelBtn.removeEventListener("click", onCancel);
+      promptOverlay.removeEventListener("click", onOverlayClick);
+      promptInputBox.removeEventListener("keydown", onKeyDown);
+      resolve(result);
+    };
+
+    const onConfirm = () => cleanup(promptInputBox.value);
+    const onCancel = () => cleanup(null);
+    const onOverlayClick = (e) => {
+      if (e.target === promptOverlay) cleanup(null);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm();
+      }
+    };
+
+    promptBtn.addEventListener("click", onConfirm);
+    promptCancelBtn.addEventListener("click", onCancel);
+    promptOverlay.addEventListener("click", onOverlayClick);
+    promptInputBox.addEventListener("keydown", onKeyDown);
+  });
 };
 
 composer.addEventListener("submit", (event) => {
@@ -663,6 +754,8 @@ const fetchConversations = async () => {
   }
 };
 
+const PIN_ICON_SVG = `<svg class="pin-indicator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.59l-3-3.23V6.5l2-1.5V3H6v2l2 1.5v5.68l-3 3.23z"></path></svg>`;
+
 const renderConversations = (conversations) => {
   if (!historyList) return;
   historyList.innerHTML = "";
@@ -671,10 +764,14 @@ const renderConversations = (conversations) => {
     const row = document.createElement("div");
     row.className = "history-row";
     if (conv.id === activeSessionId) row.classList.add("active");
+    if (conv.is_pinned) row.classList.add("is-pinned");
+
+    const pinIndicator = conv.is_pinned ? PIN_ICON_SVG : "";
+    const pinLabel = conv.is_pinned ? "Unpin" : "Pin";
 
     row.innerHTML = `
       <button class="history-topic ${conv.id === activeSessionId ? "selected" : ""}" type="button" data-id="${conv.id}">
-        <span class="history-dot"></span>
+        ${pinIndicator}
         <span class="history-title-text">${conv.title}</span>
       </button>
       <div class="history-actions">
@@ -686,10 +783,22 @@ const renderConversations = (conversations) => {
           </svg>
         </button>
         <div class="history-menu" hidden>
-          <button type="button">Share conversation</button>
-          <button type="button">Pin</button>
-          <button type="button">Rename</button>
-          <button type="button">Delete</button>
+          <button type="button" class="history-menu-share">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+            Share
+          </button>
+          <button type="button" class="history-menu-pin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.59l-3-3.23V6.5l2-1.5V3H6v2l2 1.5v5.68l-3 3.23z"></path></svg>
+            ${pinLabel}
+          </button>
+          <button type="button" class="history-menu-rename">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Rename
+          </button>
+          <button type="button" class="history-menu-delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            Delete
+          </button>
         </div>
       </div>
     `;
@@ -703,8 +812,9 @@ const renderConversations = (conversations) => {
     // Re-bind more button logic for dynamic elements
     const moreBtn = row.querySelector(".history-more");
     const menu = row.querySelector(".history-menu");
-    const renameBtn = menu.querySelector("button:nth-child(3)");
-    const deleteBtn = menu.querySelector("button:nth-child(4)");
+    const pinBtn = menu.querySelector(".history-menu-pin");
+    const renameBtn = menu.querySelector(".history-menu-rename");
+    const deleteBtn = menu.querySelector(".history-menu-delete");
 
     moreBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -712,7 +822,20 @@ const renderConversations = (conversations) => {
       closeHistoryMenus();
       moreBtn.classList.toggle("is-open", isOpening);
       moreBtn.setAttribute("aria-expanded", String(isOpening));
+      if (isOpening) {
+        const rect = moreBtn.getBoundingClientRect();
+        if (window.innerHeight - rect.bottom < 180) {
+          menu.classList.add("open-upwards");
+        }
+        row.style.zIndex = "200";
+      }
       menu.hidden = !isOpening;
+    });
+
+    pinBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeHistoryMenus();
+      handleTogglePin(conv.id, conv.is_pinned);
     });
 
     renameBtn.addEventListener("click", (e) => {
@@ -731,9 +854,31 @@ const renderConversations = (conversations) => {
   });
 };
 
+const handleTogglePin = async (sessionId, currentlyPinned) => {
+  const action = currentlyPinned ? "unpin" : "pin";
+  const confirmed = await showConfirmDialog(
+    `${currentlyPinned ? "Unpin" : "Pin"} Conversation`,
+    `Are you sure you want to ${action} this conversation?`,
+    currentlyPinned ? "Unpin" : "Pin"
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`${CONV_API}/${sessionId}/pin`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    if (data.success) {
+      fetchConversations();
+    }
+  } catch (err) {
+    console.error("Pin toggle failed:", err);
+  }
+};
+
 const handleRenameConversation = async (sessionId, currentTitle) => {
-  const newTitle = window.prompt("Enter new title:", currentTitle);
-  if (!newTitle || newTitle.trim() === "" || newTitle === currentTitle) return;
+  const newTitle = await showPromptDialog("Enter new title:", currentTitle, "Save");
+  if (newTitle === null || newTitle.trim() === "" || newTitle === currentTitle) return;
 
   try {
     const res = await fetch(`${CONV_API}/${sessionId}`, {
@@ -751,7 +896,12 @@ const handleRenameConversation = async (sessionId, currentTitle) => {
 };
 
 const handleDeleteConversation = async (sessionId) => {
-  if (!window.confirm("Are you sure you want to delete this conversation?")) return;
+  const confirmed = await showConfirmDialog(
+    "Delete Conversation",
+    "Are you sure you want to delete this conversation? This action cannot be undone.",
+    "Delete"
+  );
+  if (!confirmed) return;
 
   try {
     const res = await fetch(`${CONV_API}/${sessionId}`, {
