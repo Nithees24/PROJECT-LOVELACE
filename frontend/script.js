@@ -9,6 +9,7 @@ const composer = document.getElementById("composer");
 const promptInput = document.getElementById("promptInput");
 const themeToggleCheckbox = document.getElementById("themeToggleCheckbox");
 const sendButton = composer.querySelector(".send-button");
+const stopButton = document.getElementById("stopButton");
 const agentTrigger = document.getElementById("agentTrigger");
 const agentMenu = document.getElementById("agentMenu");
 const agentOption = document.querySelector(".agent-option[data-mode]");
@@ -32,8 +33,9 @@ const promptBtn = document.getElementById("promptBtn");
 const CHAT_MODE = "Chat Agent";
 const DEEP_MODE = "Deep Research";
 const API_ENDPOINT = (window.LOVELACE_CONFIG && window.LOVELACE_CONFIG.API_ENDPOINT) || "http://127.0.0.1:8000/api/chat";
-const CONV_API = "http://127.0.0.1:8000/api/conversations";
-const MSG_API = "http://127.0.0.1:8000/api/messages";
+const BASE_URL = API_ENDPOINT.replace("/api/chat", "");
+const CONV_API = `${BASE_URL}/api/conversations`;
+const MSG_API = `${BASE_URL}/api/messages`;
 
 // Check if user is logged in
 const userId = localStorage.getItem("lovelace_user_id");
@@ -88,6 +90,7 @@ if (signOutButton) {
 
 let activeMode = CHAT_MODE;
 let isSending = false;
+let activeAbortController = null;
 let activeSessionId = null;
 const conversationHistory = [];
 const LOVELACE_LOGO_SVG = `
@@ -182,7 +185,137 @@ const createMessage = (role, content, options = {}) => {
 
   card.append(body);
   article.append(card);
+
+  if (role === "assistant" && !options.pending && !options.error) {
+    appendAssistantFooter(article, content);
+  }
+  if (role === "user") {
+    appendUserFooter(article);
+  }
+
   return article;
+};
+
+const appendUserFooter = (article) => {
+  const card = article.querySelector(".message-card");
+  if (!card || article.querySelector(".message-footer")) return;
+
+  const footer = document.createElement("div");
+  footer.className = "message-footer";
+  footer.innerHTML = `
+    <div class="message-actions-row">
+      <button class="msg-action-btn has-tooltip" data-tooltip="Copy prompt" data-action="copy">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      </button>
+    </div>
+  `;
+
+  footer.querySelector(".msg-action-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const messages = Array.from(chatWindow.querySelectorAll(".message:not(.is-pending)"));
+    const conversationText = messages.map(m => {
+      const isUser = m.classList.contains("user");
+      const role = isUser ? "USER" : "LOVELACE";
+      const textElement = m.querySelector(".message-text");
+      const text = textElement ? textElement.innerText : "";
+      return `${role}:\n${text}`;
+    }).join("\n\n---\n\n");
+
+    navigator.clipboard.writeText(conversationText).then(() => {
+      const btn = footer.querySelector(".msg-action-btn");
+      btn.classList.add("success");
+      setTimeout(() => btn.classList.remove("success"), 1500);
+    });
+  });
+
+  article.append(footer);
+};
+
+const appendAssistantFooter = (article, content) => {
+  const card = article.querySelector(".message-card");
+  if (!card || card.querySelector(".message-footer")) return;
+
+  const footer = document.createElement("div");
+  footer.className = "message-footer";
+  footer.innerHTML = `
+    <div class="message-actions-row">
+      <button class="msg-action-btn has-tooltip" data-tooltip="Like response" data-action="like">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+      </button>
+      <button class="msg-action-btn has-tooltip" data-tooltip="Dislike response" data-action="dislike">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+      </button>
+      <button class="msg-action-btn has-tooltip" data-tooltip="Copy response" data-action="copy">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      </button>
+      <button class="msg-action-btn has-tooltip" data-tooltip="Redo response" data-action="redo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      </button>
+      <div class="msg-more-container">
+        <button class="msg-action-btn" data-action="more">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+        </button>
+        <div class="msg-more-dropdown" hidden>
+          <p class="model-info">Generated by Lovelace Intelligence (Gemini 3 Flash)</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Action Logic
+  footer.querySelectorAll(".msg-action-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      if (action === "copy") {
+        // Copy entire conversation logic
+        const messages = Array.from(chatWindow.querySelectorAll(".message:not(.is-pending)"));
+        const conversationText = messages.map(m => {
+          const isUser = m.classList.contains("user");
+          const role = isUser ? "USER" : "LOVELACE";
+          const textElement = m.querySelector(".message-text");
+          const text = textElement ? textElement.innerText : "";
+          return `${role}:\n${text}`;
+        }).join("\n\n---\n\n");
+
+        navigator.clipboard.writeText(conversationText).then(() => {
+          btn.classList.add("success");
+          setTimeout(() => btn.classList.remove("success"), 1500);
+        });
+      } else if (action === "like" || action === "dislike") {
+        const score = action === "like" ? 1 : -1;
+        const isDeselecting = btn.classList.contains("active");
+
+        // If already active, clicking again effectively "undoes" the vote (0)
+        // But the user specifically asked for +1 and -1.
+        // I'll implement it so clicking toggles the state and notifies the backend.
+
+        btn.classList.toggle("active");
+        const otherAction = action === "like" ? "dislike" : "like";
+        footer.querySelector(`[data-action="${otherAction}"]`).classList.remove("active");
+
+        if (activeSessionId) {
+          fetch(`${CONV_API}/${activeSessionId}/rate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ score: score })
+          }).catch(err => console.error("Rating failed:", err));
+        }
+      } else if (action === "redo") {
+        const messages = Array.from(chatWindow.querySelectorAll(".message.user"));
+        if (messages.length > 0) {
+          const lastUserMsg = messages[messages.length - 1];
+          promptInput.value = lastUserMsg.querySelector(".message-text").textContent;
+          composer.requestSubmit();
+        }
+      } else if (action === "more") {
+        const dropdown = btn.nextElementSibling;
+        dropdown.hidden = !dropdown.hidden;
+      }
+    });
+  });
+
+  card.append(footer);
 };
 
 const setComposerBusy = (busy) => {
@@ -192,7 +325,7 @@ const setComposerBusy = (busy) => {
   composer.classList.toggle("is-busy", busy);
 };
 
-const requestAssistantReply = async (message, sessionId) => {
+const requestAssistantReply = async (message, sessionId, options = {}) => {
   const response = await fetch(API_ENDPOINT, {
     method: "POST",
     headers: {
@@ -202,7 +335,8 @@ const requestAssistantReply = async (message, sessionId) => {
       message,
       mode: activeMode,
       conversation_id: sessionId
-    })
+    }),
+    signal: options.signal
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -431,6 +565,9 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".account-popover")) {
     closeAccountMenu();
   }
+  if (!event.target.closest(".msg-more-container")) {
+    document.querySelectorAll(".msg-more-dropdown").forEach(d => d.hidden = true);
+  }
 });
 
 document.addEventListener("keydown", (event) => {
@@ -462,26 +599,31 @@ const scrollToBottomBtn = document.getElementById("scrollToBottomBtn");
 
 // If user manually scrolls up, pause auto-scroll. Resume when near bottom.
 chatWindow.addEventListener("scroll", () => {
-  let distFromBottom;
   const currentScrollTop = chatWindow.scrollTop;
   const isScrolledUp = currentScrollTop < lastScrollTop;
   lastScrollTop = currentScrollTop;
-  const lastMessage = chatWindow.querySelector(".message:last-of-type");
-  
-  if (isSending && lastMessage) {
-    const windowRect = chatWindow.getBoundingClientRect();
-    const elementRect = lastMessage.getBoundingClientRect();
-    distFromBottom = elementRect.bottom - windowRect.bottom + 24;
+
+  let distFromBottom;
+  const spacer = chatWindow.querySelector(".scroll-spacer");
+  if (spacer) {
+    const lastMsg = chatWindow.querySelector(".message:last-of-type");
+    if (lastMsg) {
+      const winBottom = chatWindow.getBoundingClientRect().bottom;
+      const msgBottom = lastMsg.getBoundingClientRect().bottom;
+      distFromBottom = msgBottom - winBottom;
+    } else {
+      distFromBottom = 0;
+    }
   } else {
     distFromBottom = chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight;
   }
-  
+
   if (isScrolledUp) {
     autoScrollEnabled = false;
   } else if (distFromBottom < 15) {
     autoScrollEnabled = true;
   }
-  
+
   if (distFromBottom > 180) {
     scrollToBottomBtn.classList.add("is-visible");
   } else {
@@ -492,7 +634,7 @@ chatWindow.addEventListener("scroll", () => {
 scrollToBottomBtn.addEventListener("click", () => {
   autoScrollEnabled = false;
   scrollToBottom(true);
-  
+
   // Wait for the smooth scroll to finish before re-enabling 
   // the instant typeWriter cursor tracker, so it doesn't cancel the scroll animation.
   setTimeout(() => {
@@ -501,21 +643,22 @@ scrollToBottomBtn.addEventListener("click", () => {
 });
 
 const scrollToBottom = (smooth = false) => {
-  const lastMessage = chatWindow.querySelector(".message:last-of-type");
-  
-  if (isSending && lastMessage) {
-    const windowRect = chatWindow.getBoundingClientRect();
-    const elementRect = lastMessage.getBoundingClientRect();
-    chatWindow.scrollBy({
-      top: elementRect.bottom - windowRect.bottom + 24,
-      behavior: smooth ? "smooth" : "instant"
-    });
-  } else {
-    chatWindow.scrollTo({
-      top: chatWindow.scrollHeight,
-      behavior: smooth ? "smooth" : "instant"
-    });
+  const spacer = chatWindow.querySelector(".scroll-spacer");
+  if (spacer) {
+    // During generation, scroll to the last message, not the spacer
+    const lastMsg = chatWindow.querySelector(".message:last-of-type");
+    if (lastMsg) {
+      const winTop = chatWindow.getBoundingClientRect().top;
+      const msgBottom = lastMsg.getBoundingClientRect().bottom;
+      const offset = msgBottom - winTop - chatWindow.clientHeight + 24;
+      chatWindow.scrollBy({ top: offset, behavior: smooth ? "smooth" : "instant" });
+      return;
+    }
   }
+  chatWindow.scrollTo({
+    top: chatWindow.scrollHeight,
+    behavior: smooth ? "smooth" : "instant"
+  });
 };
 
 // Scroll new user message to the top of the chat viewport
@@ -525,16 +668,16 @@ const scrollMessageToTop = (messageEl) => {
   const prevTransform = messageEl.style.transform;
   messageEl.style.animation = "none";
   messageEl.style.transform = "none";
-  
+
   const windowTop = chatWindow.getBoundingClientRect().top;
   const msgTop = messageEl.getBoundingClientRect().top;
   const offset = msgTop - windowTop;
-  
+
   chatWindow.scrollBy({
     top: offset - 32, // 32px padding to perfectly match the chat window's top padding for 1:1 symmetry across all bubbles
     behavior: "smooth"
   });
-  
+
   // Restore animations seamlessly
   messageEl.style.animation = prevAnim;
   messageEl.style.transform = prevTransform;
@@ -547,6 +690,8 @@ const typeWriterEffect = async (element, text, speed = 20) => {
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
+    // Stop typing if the generation was aborted
+    if (!isSending) break;
     if (token === "") continue;
 
     accumulated += token;
@@ -649,15 +794,16 @@ composer.addEventListener("submit", (event) => {
   const userMessage = createMessage("user", value);
   const pendingMessage = createMessage("assistant", "", { pending: true });
 
-  // Create a dynamic spacer to let the message scroll to the top
-  const scrollSpacer = document.createElement("div");
-  scrollSpacer.style.height = "65vh";
-  scrollSpacer.style.transition = "height 0.4s ease-out";
-
   chatWindow.append(userMessage);
   chatWindow.append(pendingMessage);
+
+  // Temporary spacer to guarantee enough scroll room for the user bubble to reach the top
+  const scrollSpacer = document.createElement("div");
+  scrollSpacer.className = "scroll-spacer";
+  scrollSpacer.style.height = chatWindow.clientHeight + "px";
+  scrollSpacer.style.pointerEvents = "none";
   chatWindow.append(scrollSpacer);
-  
+
   conversationHistory.push({ role: "user", content: value });
   syncStageState();
 
@@ -673,18 +819,25 @@ composer.addEventListener("submit", (event) => {
     }, 300);
   }
 
-  // Always scroll the user's new message to the top
-  // so they can read the full response from the start
-  window.requestAnimationFrame(() => {
-    scrollMessageToTop(userMessage);
-  });
-
-  // Always re-enable auto-scroll when a new message is sent
-  autoScrollEnabled = true;
-
   promptInput.value = "";
   autoResize();
   setComposerBusy(true);
+
+  // Always scroll the user's new message to the top
+  // so they can read the full response from the start
+  // Double-rAF ensures layout + paint are fully committed before scrolling
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      scrollMessageToTop(userMessage);
+      // Re-enable auto-scroll after the smooth scroll animation finishes,
+      // so the scroll listener doesn't disable it mid-animation.
+      setTimeout(() => {
+        autoScrollEnabled = true;
+      }, 450);
+    });
+  });
+
+  activeAbortController = new AbortController();
 
   // If no active session, create one first
   const ensureSession = async () => {
@@ -693,7 +846,8 @@ composer.addEventListener("submit", (event) => {
       const resp = await fetch(CONV_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: parseInt(userId) })
+        body: JSON.stringify({ user_id: parseInt(userId) }),
+        signal: activeAbortController.signal
       });
       const data = await resp.json();
       if (data.success) {
@@ -703,39 +857,55 @@ composer.addEventListener("submit", (event) => {
         return activeSessionId;
       }
     } catch (err) {
-      console.error("Session creation failed:", err);
+      if (err.name === 'AbortError') {
+        console.log('Session creation aborted');
+      } else {
+        console.error("Session creation failed:", err);
+      }
     }
     return 1; // last resort fallback
   };
 
   ensureSession().then(sessionId => {
-    requestAssistantReply(value, sessionId)
+    requestAssistantReply(value, sessionId, { signal: activeAbortController.signal })
       .then(async (reply) => {
         pendingMessage.classList.remove("is-pending");
         conversationHistory.push({ role: "assistant", content: reply });
-        
+
         // If it was the first message, refresh sidebar to show the generated title
         if (wasEmpty) {
           fetchConversations();
         }
 
         await typeWriterEffect(pendingMessage.querySelector(".message-text"), reply);
+        appendAssistantFooter(pendingMessage, reply);
       })
       .catch((error) => {
         pendingMessage.classList.remove("is-pending");
-        pendingMessage.classList.add("is-error");
-        pendingMessage.querySelector(".message-text").textContent = error.message || "Something went wrong while contacting the backend.";
+        if (error.name === 'AbortError') {
+          pendingMessage.querySelector(".message-text").textContent = "Response generation stopped.";
+        } else {
+          pendingMessage.classList.add("is-error");
+          pendingMessage.querySelector(".message-text").textContent = error.message || "Something went wrong while contacting the backend.";
+        }
       })
       .finally(() => {
+        // Remove the scroll spacer before final positioning
+        scrollSpacer.remove();
         setComposerBusy(false);
+        activeAbortController = null;
         promptInput.focus();
-        // Smoothly collapse the spacer padding to snap the chat down gracefully
-        window.requestAnimationFrame(() => {
-          scrollSpacer.style.height = "0px";
-          setTimeout(() => scrollSpacer.remove(), 400); // Wait for transition
-        });
+        // Scroll so the response end + footer sits at the bottom of the viewport
+        scrollToBottom();
       });
   });
+});
+
+stopButton.addEventListener("click", () => {
+  if (activeAbortController) {
+    activeAbortController.abort();
+    setComposerBusy(false);
+  }
 });
 
 // ===== Conversation History System =====
@@ -923,7 +1093,7 @@ const handleDeleteConversation = async (sessionId) => {
 const loadConversation = async (sessionId) => {
   if (activeSessionId === sessionId) return;
   activeSessionId = sessionId;
-  
+
   // Update selection UI
   const topics = historyList.querySelectorAll(".history-topic");
   topics.forEach(t => {
@@ -1029,7 +1199,7 @@ acctCustomSelects.forEach(customSelect => {
   });
 
   options.forEach(option => {
-    option.addEventListener("click", function(e) {
+    option.addEventListener("click", function (e) {
       e.stopPropagation();
       options.forEach(opt => opt.classList.remove("selected"));
       this.classList.add("selected");

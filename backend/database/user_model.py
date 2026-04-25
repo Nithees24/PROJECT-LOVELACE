@@ -17,3 +17,5 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    resend_count = Column(Integer, default=0)
+    last_resend_time = Column(DateTime, nullable=True)

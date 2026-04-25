@@ -69,11 +69,22 @@
             <div class="account-list">
               <button class="account-item" id="manageAccountBtn" type="button">
                 <span>Manage your account</span>
-                <span class="account-arrow">&gt;</span>
+                <span class="account-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </span>
               </button>
-              <button class="account-item" id="signOutBtn" type="button">
+              <button class="account-item signout-item" id="signOutBtn" type="button">
                 <span>Sign out</span>
-                <span class="account-arrow">&gt;</span>
+                <span class="account-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline class="out-arrow" points="16 17 21 12 16 7"></polyline>
+                    <line class="out-line" x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                </span>
               </button>
             </div>
           </section>
@@ -204,11 +215,18 @@
         <label class="composer-box" for="promptInput">
           <textarea id="promptInput" rows="1"
             placeholder="Ask Lovelace a science question, request a comparison, or trigger deep search..."></textarea>
-          <button class="send-button" type="submit" aria-label="Send message" title="Send message">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 20L20 12L4 4L7.5 12L4 20Z"></path>
-            </svg>
-          </button>
+          <div class="composer-actions">
+            <button class="send-button" type="submit" aria-label="Send message" title="Send message">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20L20 12L4 4L7.5 12L4 20Z"></path>
+              </svg>
+            </button>
+            <button class="stop-button" id="stopButton" type="button" aria-label="Stop generating" title="Stop generating">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+              </svg>
+            </button>
+          </div>
         </label>
       </form>
       <p class="composer-note">Lovelace is an AI and can make mistakes</p>

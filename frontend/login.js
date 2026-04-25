@@ -310,3 +310,41 @@ document.addEventListener("click", (e) => {
     customSelects.forEach(s => s.classList.remove("open"));
   }
 });
+
+// Resend Email Logic
+const resendEmailBtn = document.getElementById("resendEmailBtn");
+const resendEmailStatus = document.getElementById("resendEmailStatus");
+
+if (resendEmailBtn) {
+  resendEmailBtn.addEventListener("click", async () => {
+    const email = idEmailInput.value.trim();
+    if (!email) return;
+
+    resendEmailBtn.disabled = true;
+    resendEmailStatus.textContent = "Sending email...";
+    resendEmailStatus.style.color = "var(--text)";
+
+    try {
+      const res = await fetch(`${API_BASE}/resend-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        resendEmailStatus.textContent = data.error;
+        resendEmailStatus.style.color = "#ff8d72";
+      } else {
+        resendEmailStatus.textContent = "Email sent again!";
+        resendEmailStatus.style.color = "#34A853";
+      }
+    } catch (err) {
+      resendEmailStatus.textContent = "Failed to resend email.";
+      resendEmailStatus.style.color = "#ff8d72";
+    } finally {
+      resendEmailBtn.disabled = false;
+    }
+  });
+}
+

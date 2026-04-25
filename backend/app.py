@@ -1,6 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+import uuid
+from backend.utils.email_utils import send_verification_email
+from backend.config import BASE_URL
 
 from backend.llm.llm_client import LLMClient
 from backend.agents.general_chat_agent import GeneralChatAgent
@@ -41,7 +45,7 @@ general_agent = GeneralChatAgent(llm_client)
 deep_agent = DeepResearchAgent(llm_client)
 planner = Planner(llm_client)
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class CheckEmailRequest(BaseModel):
     email: str
@@ -74,7 +78,7 @@ def check_email(req: CheckEmailRequest):
         db.close()
 
 @app.post("/api/auth/register")
-def register(req: SignupRequest):
+def register(req: SignupRequest, background_tasks: BackgroundTasks):
     db = SessionLocal()
     try:
         exists = db.query(User).filter(User.email == req.email).first()
@@ -91,6 +95,8 @@ def register(req: SignupRequest):
             except ValueError:
                 pass # Fallback if date is invalid
 
+        verification_token = str(uuid.uuid4())
+
         new_user = User(
             email=req.email,
             password_hash=hash_password(req.password),
@@ -99,11 +105,99 @@ def register(req: SignupRequest):
             role=req.role,
             age=calculated_age,
             dob=req.dob,
-            gender=req.gender
+            gender=req.gender,
+            verification_token=verification_token
         )
         db.add(new_user)
         db.commit()
+
+        background_tasks.add_task(
+            send_verification_email,
+            req.email,
+            verification_token,
+            BASE_URL
+        )
+
         return {"success": True, "message": "User created successfully"}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+@app.get("/api/auth/verify/{token}", response_class=HTMLResponse)
+def verify_email(token: str):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.verification_token == token).first()
+        if not user:
+            return HTMLResponse(content="""
+                <html>
+                    <body style="background-color:#182321; color:#fff; font-family:sans-serif; text-align:center; padding-top:100px;">
+                        <h2>Verification Failed</h2>
+                        <p style="color:#ff8d72;">Invalid or expired verification link.</p>
+                    </body>
+                </html>
+            """, status_code=404)
+        
+        user.is_verified = True
+        user.verification_token = None
+        db.commit()
+        
+        return HTMLResponse(content="""
+            <html>
+                <body style="background-color:#182321; color:#fff; font-family:sans-serif; text-align:center; padding-top:100px;">
+                    <h2>Email Verified Successfully!</h2>
+                    <p style="color:#34A853;">Your research identity has been confirmed. You can close this tab and return to the login page.</p>
+                </body>
+            </html>
+        """)
+    except Exception as e:
+        return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
+    finally:
+        db.close()
+
+class ResendEmailRequest(BaseModel):
+    email: str
+
+@app.post("/api/auth/resend-email")
+def resend_email(req: ResendEmailRequest, background_tasks: BackgroundTasks):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == req.email).first()
+        if not user:
+            return {"error": "User not found"}
+        if user.is_verified:
+            return {"error": "User is already verified"}
+            
+        now = datetime.utcnow()
+        current_count = user.resend_count or 0
+        
+        if current_count >= 3:
+            if user.last_resend_time and now - user.last_resend_time < timedelta(hours=6):
+                return {"error": "max no.of time used, try after some time."}
+            else:
+                user.resend_count = 1
+                user.last_resend_time = now
+        else:
+            if user.last_resend_time and now - user.last_resend_time > timedelta(hours=24):
+                user.resend_count = 1
+            else:
+                user.resend_count = current_count + 1
+            user.last_resend_time = now
+            
+        if not user.verification_token:
+            user.verification_token = str(uuid.uuid4())
+            
+        db.commit()
+        
+        background_tasks.add_task(
+            send_verification_email,
+            user.email,
+            user.verification_token,
+            BASE_URL
+        )
+        
+        return {"success": True, "message": "Verification email resent"}
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -269,6 +363,26 @@ def toggle_pin_conversation(conversation_id: int):
         conv.pinned_at = datetime.utcnow() if conv.is_pinned else None
         db.commit()
         return {"success": True, "is_pinned": conv.is_pinned}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+class RateConversationRequest(BaseModel):
+    score: int # +1 or -1
+
+@app.post("/api/conversations/{conversation_id}/rate")
+def rate_conversation(conversation_id: int, req: RateConversationRequest):
+    print(f"DEBUG: Rating conversation {conversation_id} with score {req.score}")
+    db = SessionLocal()
+    try:
+        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if not conv:
+            return {"error": "Conversation not found"}
+        # Increment/Decrement the rating
+        conv.rating = (conv.rating or 0) + req.score
+        db.commit()
+        return {"success": True, "new_rating": conv.rating}
     except Exception as e:
         return {"error": str(e)}
     finally:

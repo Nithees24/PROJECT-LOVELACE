@@ -11,3 +11,4 @@ class Conversation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     is_pinned = Column(Boolean, default=False, nullable=False)
     pinned_at = Column(DateTime, nullable=True)
+    rating = Column(Integer, default=0, nullable=False)
