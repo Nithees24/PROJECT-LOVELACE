@@ -207,28 +207,127 @@ const appendUserFooter = (article) => {
       <button class="msg-action-btn has-tooltip" data-tooltip="Copy prompt" data-action="copy">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
       </button>
+      <button class="msg-action-btn has-tooltip" data-tooltip="Edit prompt" data-action="edit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+      </button>
     </div>
   `;
 
-  footer.querySelector(".msg-action-btn").addEventListener("click", (e) => {
-    e.stopPropagation();
-    const messages = Array.from(chatWindow.querySelectorAll(".message:not(.is-pending)"));
-    const conversationText = messages.map(m => {
-      const isUser = m.classList.contains("user");
-      const role = isUser ? "USER" : "LOVELACE";
-      const textElement = m.querySelector(".message-text");
-      const text = textElement ? textElement.innerText : "";
-      return `${role}:\n${text}`;
-    }).join("\n\n---\n\n");
-
-    navigator.clipboard.writeText(conversationText).then(() => {
-      const btn = footer.querySelector(".msg-action-btn");
-      btn.classList.add("success");
-      setTimeout(() => btn.classList.remove("success"), 1500);
+  footer.querySelectorAll(".msg-action-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      if (action === "copy") {
+        const text = card.querySelector(".message-text").innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.classList.add("success");
+          setTimeout(() => btn.classList.remove("success"), 1500);
+        });
+      } else if (action === "edit") {
+        enterEditMode(article);
+      }
     });
   });
 
   article.append(footer);
+};
+
+const enterEditMode = (article) => {
+  const card = article.querySelector(".message-card");
+  const textElement = card.querySelector(".message-text");
+  const footer = article.querySelector(".message-footer");
+  const originalText = textElement.innerText;
+
+  // Hide original content
+  textElement.style.display = "none";
+  footer.style.display = "none";
+  card.classList.add("is-editing");
+
+  const editContainer = document.createElement("div");
+  editContainer.className = "edit-container";
+  editContainer.innerHTML = `
+    <textarea class="edit-textarea">${originalText}</textarea>
+    <div class="edit-actions">
+      <button class="edit-btn cancel" id="editCancel">Cancel</button>
+      <button class="edit-btn update" id="editUpdate" disabled>Update</button>
+    </div>
+  `;
+
+  card.appendChild(editContainer);
+  const textarea = editContainer.querySelector(".edit-textarea");
+  const updateBtn = editContainer.querySelector("#editUpdate");
+  const cancelBtn = editContainer.querySelector("#editCancel");
+
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+  // Auto-resize textarea
+  const resize = () => {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+  };
+  textarea.addEventListener("input", () => {
+    resize();
+    updateBtn.disabled = textarea.value.trim() === originalText.trim() || textarea.value.trim() === "";
+  });
+  resize();
+
+  cancelBtn.onclick = () => {
+    editContainer.remove();
+    card.classList.remove("is-editing");
+    textElement.style.display = "block";
+    footer.style.display = "flex";
+  };
+
+  updateBtn.onclick = async () => {
+    const newText = textarea.value.trim();
+    editContainer.remove();
+    card.classList.remove("is-editing");
+    textElement.innerText = newText;
+    textElement.style.display = "block";
+    footer.style.display = "flex";
+
+    // Trigger regeneration
+    handlePromptUpdate(article, newText);
+  };
+};
+
+const handlePromptUpdate = async (userArticle, newText) => {
+  // Find the assistant message following this user message
+  let nextMsg = userArticle.nextElementSibling;
+  while (nextMsg && !nextMsg.classList.contains("message")) {
+    nextMsg = nextMsg.nextElementSibling;
+  }
+
+  // If the next message is an assistant message, remove it
+  if (nextMsg && nextMsg.classList.contains("assistant")) {
+    nextMsg.remove();
+  }
+
+  // Abort any current generation if needed
+  if (activeAbortController) {
+    activeAbortController.abort();
+  }
+
+  // Create new pending message
+  const pendingMessage = createMessage("assistant", "", { pending: true });
+  userArticle.after(pendingMessage);
+
+  activeAbortController = new AbortController();
+
+  try {
+    const reply = await requestAssistantReply(newText, activeSessionId, { signal: activeAbortController.signal });
+    pendingMessage.classList.remove("is-pending");
+    await typeWriterEffect(pendingMessage.querySelector(".message-text"), reply);
+    appendAssistantFooter(pendingMessage, reply);
+    scrollToBottom();
+  } catch (error) {
+    pendingMessage.classList.remove("is-pending");
+    if (error.name !== 'AbortError') {
+      pendingMessage.classList.add("is-error");
+      pendingMessage.querySelector(".message-text").textContent = error.message || "Regeneration failed.";
+    }
+  }
 };
 
 const appendAssistantFooter = (article, content) => {
