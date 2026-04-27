@@ -14,6 +14,11 @@ const agentTrigger = document.getElementById("agentTrigger");
 const agentMenu = document.getElementById("agentMenu");
 const agentOption = document.querySelector(".agent-option[data-mode]");
 const accountPopover = document.getElementById("accountPopover");
+const attachmentTrigger = document.getElementById("attachmentTrigger");
+const attachmentMenu = document.getElementById("attachmentMenu");
+const uploadDocBtn = document.getElementById("uploadDocBtn");
+const docInput = document.getElementById("docInput");
+const composerAttachments = document.getElementById("composerAttachments");
 const profileMenuButton = document.getElementById("profileMenuButton");
 const profileMenu = document.getElementById("profileMenu");
 const historyItems = Array.from(document.querySelectorAll(".history-topic"));
@@ -170,7 +175,31 @@ const createMessage = (role, content, options = {}) => {
   const body = document.createElement("div");
   body.className = "message-text";
 
-  if (role === "assistant") {
+  // Check if it's a file message
+  if (content && content.startsWith("Uploaded file: ")) {
+    const fileName = content.replace("Uploaded file: ", "");
+    const isPending = options.fileStatus === "pending";
+    const statusText = isPending ? "Indexing document..." : "Document indexed";
+    const statusIcon = isPending 
+      ? `<div class="spinner-mini" style="width: 16px; height: 16px; border-width: 2px;"></div>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+    body.innerHTML = `<div class="file-attachment-card ${isPending ? 'is-uploading' : ''}">
+        <div class="file-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+        </div>
+        <div class="file-info">
+          <span class="file-name">${fileName}</span>
+          <span class="file-meta">${statusText}</span>
+        </div>
+        <div class="file-status-icon">
+          ${statusIcon}
+        </div>
+      </div>`;
+  } else if (role === "assistant") {
     body.innerHTML = parseMarkdown(content || "");
   } else {
     body.textContent = content;
@@ -189,7 +218,8 @@ const createMessage = (role, content, options = {}) => {
   if (role === "assistant" && !options.pending && !options.error) {
     appendAssistantFooter(article, content);
   }
-  if (role === "user") {
+  const isFileMsg = content && content.startsWith("Uploaded file: ");
+  if (role === "user" && !isFileMsg) {
     appendUserFooter(article);
   }
 
@@ -471,7 +501,11 @@ const updateAgentUI = () => {
   agentOption.dataset.mode = DEEP_MODE;
   agentOption.textContent = "Deep research";
   agentTrigger.classList.toggle("is-active", activeMode === DEEP_MODE);
-  syncStageState();
+  // Reset composer attachments
+  if (composerAttachments) {
+    composerAttachments.innerHTML = "";
+    composerAttachments.hidden = true;
+  }
 };
 
 const setActiveMode = (mode) => {
@@ -667,6 +701,10 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".msg-more-container")) {
     document.querySelectorAll(".msg-more-dropdown").forEach(d => d.hidden = true);
   }
+  if (!event.target.closest(".attachment-selector")) {
+    if (attachmentMenu) attachmentMenu.hidden = true;
+    if (attachmentTrigger) attachmentTrigger.classList.remove("is-open");
+  }
 });
 
 document.addEventListener("keydown", (event) => {
@@ -812,6 +850,69 @@ const typeWriterEffect = async (element, text, speed = 20) => {
   }
 };
 
+// Attachment logic
+if (attachmentTrigger) {
+  attachmentTrigger.addEventListener("click", () => {
+    const isOpening = attachmentMenu.hidden;
+    attachmentMenu.hidden = !isOpening;
+    attachmentTrigger.classList.toggle("is-open", isOpening);
+  });
+}
+
+if (uploadDocBtn) {
+  uploadDocBtn.addEventListener("click", () => {
+    docInput.click();
+    attachmentMenu.hidden = true;
+    attachmentTrigger.classList.remove("is-open");
+  });
+}
+
+let stagedFile = null;
+
+if (docInput) {
+  docInput.addEventListener("change", async () => {
+    const file = docInput.files[0];
+    if (!file) return;
+
+    const allowedExtensions = [".pdf", ".docx", ".txt", ".xlsx"];
+    const fileName = file.name.toLowerCase();
+    const hasAllowedExt = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!hasAllowedExt) {
+      alert("Please upload a supported file type (.pdf, .docx, .txt, .xlsx).");
+      return;
+    }
+
+    stagedFile = file;
+
+    // Show chip in composer without spinner
+    composerAttachments.hidden = false;
+    composerAttachments.innerHTML = "";
+    const chip = document.createElement("div");
+    chip.className = "attachment-chip";
+    chip.innerHTML = `
+      <span class="attachment-chip-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </span>
+      <span class="attachment-chip-name">${file.name}</span>
+      <button type="button" class="attachment-chip-remove" style="background:none; border:none; color:inherit; cursor:pointer; padding:0 4px; font-size:16px;">&times;</button>
+    `;
+    
+    chip.querySelector(".attachment-chip-remove").addEventListener("click", () => {
+      stagedFile = null;
+      docInput.value = "";
+      composerAttachments.innerHTML = "";
+      composerAttachments.hidden = true;
+    });
+
+    composerAttachments.appendChild(chip);
+  });
+}
+
+
 const showConfirmDialog = (title, description, confirmText = "Confirm") => {
   return new Promise((resolve) => {
     confirmTitle.textContent = title;
@@ -883,17 +984,95 @@ composer.addEventListener("submit", (event) => {
   }
 
   const value = promptInput.value.trim();
-  if (!value) {
+  if (!value && !stagedFile) {
     return;
+  }
+
+  // Capture the file to upload and immediately clear the UI
+  const fileToUpload = stagedFile;
+  stagedFile = null;
+  docInput.value = "";
+  if (composerAttachments) {
+    composerAttachments.innerHTML = "";
+    composerAttachments.hidden = true;
   }
 
   const wasEmpty = chatWindow.querySelector(".message") === null;
   const composerRect = composer.getBoundingClientRect();
   const introRect = wasEmpty ? chatIntro.getBoundingClientRect() : null;
-  const userMessage = createMessage("user", value);
-  const pendingMessage = createMessage("assistant", "", { pending: true });
+  
+  let fileMsg = null;
+  let userMessage = null;
+  let compositeMsg = null;
 
-  chatWindow.append(userMessage);
+  if (fileToUpload && value) {
+    compositeMsg = document.createElement("article");
+    compositeMsg.className = "message user animate-in";
+
+    const groupContainer = document.createElement("div");
+    groupContainer.className = "message-group";
+    groupContainer.style.display = "flex";
+    groupContainer.style.flexDirection = "column";
+    groupContainer.style.alignItems = "stretch"; // Forces both to have same width
+    groupContainer.style.gap = "0";
+
+    const fileCardContainer = document.createElement("div");
+    fileCardContainer.className = "message-card file-card-wrapper";
+    fileCardContainer.style.padding = "0";
+    fileCardContainer.style.background = "transparent";
+    fileCardContainer.style.boxShadow = "none";
+    fileCardContainer.style.border = "none";
+
+    const fileName = fileToUpload.name;
+    fileCardContainer.innerHTML = `<div class="file-attachment-card is-uploading" style="margin: 0; width: 100%; box-sizing: border-box; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+          </div>
+          <div class="file-info">
+            <span class="file-name" style="color: var(--text);">${fileName}</span>
+            <span class="file-meta">Indexing document...</span>
+          </div>
+          <div class="file-status-icon">
+            <div class="spinner-mini" style="width: 16px; height: 16px; border-width: 2px;"></div>
+          </div>
+        </div>`;
+    groupContainer.append(fileCardContainer);
+    fileMsg = compositeMsg; // Upload logic uses fileMsg.querySelector
+
+    const textCardContainer = document.createElement("div");
+    textCardContainer.className = "message-card";
+    textCardContainer.style.borderTopLeftRadius = "6px";
+    textCardContainer.style.borderTopRightRadius = "6px";
+    textCardContainer.style.marginTop = "4px"; // Tiny separator line
+    textCardContainer.innerHTML = `<div class="message-text">${value}</div>`;
+    groupContainer.append(textCardContainer);
+    conversationHistory.push({ role: "user", content: value });
+
+    compositeMsg.append(groupContainer);
+    appendUserFooter(compositeMsg);
+    chatWindow.append(compositeMsg);
+    
+    // Assign userMessage for scrolling
+    userMessage = compositeMsg;
+  } else {
+    // Standard un-joined rendering for single items
+    if (fileToUpload) {
+      fileMsg = createMessage("user", `Uploaded file: ${fileToUpload.name}`, { fileStatus: "pending" });
+      chatWindow.append(fileMsg);
+      userMessage = fileMsg;
+    }
+    
+    if (value) {
+      userMessage = createMessage("user", value);
+      chatWindow.append(userMessage);
+      conversationHistory.push({ role: "user", content: value });
+    }
+  }
+
+  const pendingMessage = createMessage("assistant", "", { pending: true });
   chatWindow.append(pendingMessage);
 
   // Temporary spacer to guarantee enough scroll room for the user bubble to reach the top
@@ -903,7 +1082,6 @@ composer.addEventListener("submit", (event) => {
   scrollSpacer.style.pointerEvents = "none";
   chatWindow.append(scrollSpacer);
 
-  conversationHistory.push({ role: "user", content: value });
   syncStageState();
 
   if (wasEmpty) {
@@ -927,7 +1105,7 @@ composer.addEventListener("submit", (event) => {
   // Double-rAF ensures layout + paint are fully committed before scrolling
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => {
-      scrollMessageToTop(userMessage);
+      scrollMessageToTop(userMessage || fileMsg);
       // Re-enable auto-scroll after the smooth scroll animation finishes,
       // so the scroll listener doesn't disable it mid-animation.
       setTimeout(() => {
@@ -938,36 +1116,63 @@ composer.addEventListener("submit", (event) => {
 
   activeAbortController = new AbortController();
 
-  // If no active session, create one first
-  const ensureSession = async () => {
-    if (activeSessionId) return activeSessionId;
-    try {
-      const resp = await fetch(CONV_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: parseInt(userId) }),
-        signal: activeAbortController.signal
-      });
-      const data = await resp.json();
-      if (data.success) {
-        activeSessionId = data.conversation_id;
-        // fetch list to show the new "New Conversation" in sidebar
-        await fetchConversations();
-        return activeSessionId;
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        console.log('Session creation aborted');
-      } else {
-        console.error("Session creation failed:", err);
+  ensureSession().then(async sessionId => {
+    // 1. Process upload if there's a staged file
+    if (fileToUpload) {
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+      
+      try {
+        const uploadRes = await fetch(`${BASE_URL}/api/rag/upload?conversation_id=${sessionId}`, {
+          method: "POST",
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        
+        if (uploadData.success && fileMsg) {
+          const cardBody = fileMsg.querySelector(".file-attachment-card");
+          if (cardBody) {
+            cardBody.classList.remove("is-uploading");
+            cardBody.querySelector(".file-meta").textContent = "Document indexed";
+            cardBody.querySelector(".file-status-icon").innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            `;
+          }
+        } else {
+          throw new Error(uploadData.error || "Upload failed");
+        }
+      } catch (err) {
+        if (fileMsg) fileMsg.remove();
+        alert(`Upload error: ${err.message}`);
+        pendingMessage.remove();
+        scrollSpacer.remove();
+        setComposerBusy(false);
+        
+        // Restore text prompt so user doesn't lose their typed message
+        if (value) {
+          promptInput.value = value;
+          autoResize();
+        }
+        
+        return; // Stop flow completely
       }
     }
-    return 1; // last resort fallback
-  };
 
-  ensureSession().then(sessionId => {
+    // 2. Process text prompt if present
+    if (!value) {
+      // If there was ONLY a file and no prompt text, we stop here and remove the pending assistant msg
+      pendingMessage.remove();
+      scrollSpacer.remove();
+      setComposerBusy(false);
+      return;
+    }
+
     requestAssistantReply(value, sessionId, { signal: activeAbortController.signal })
       .then(async (reply) => {
+        if (activeSessionId !== sessionId) return;
+        
         pendingMessage.classList.remove("is-pending");
         conversationHistory.push({ role: "assistant", content: reply });
 
@@ -980,15 +1185,33 @@ composer.addEventListener("submit", (event) => {
         appendAssistantFooter(pendingMessage, reply);
       })
       .catch((error) => {
+        if (activeSessionId !== sessionId) return;
+
         pendingMessage.classList.remove("is-pending");
         if (error.name === 'AbortError') {
-          pendingMessage.querySelector(".message-text").textContent = "Response generation stopped.";
+          const abortedMsg = "Response generation stopped.";
+          pendingMessage.querySelector(".message-text").textContent = abortedMsg;
+          conversationHistory.push({ role: "assistant", content: abortedMsg });
+          
+          // Save the aborted state to the backend
+          fetch(`${BASE_URL}/api/chat/save_aborted`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              conversation_id: sessionId,
+              message: abortedMsg
+            })
+          }).catch(err => console.error("Failed to save aborted state", err));
+
         } else {
           pendingMessage.classList.add("is-error");
           pendingMessage.querySelector(".message-text").textContent = error.message || "Something went wrong while contacting the backend.";
         }
+        setComposerBusy(false);
       })
       .finally(() => {
+        if (activeSessionId !== sessionId) return;
+
         // Remove the scroll spacer before final positioning
         scrollSpacer.remove();
         setComposerBusy(false);
@@ -999,6 +1222,28 @@ composer.addEventListener("submit", (event) => {
       });
   });
 });
+
+
+const ensureSession = async () => {
+  if (activeSessionId) return activeSessionId;
+  try {
+    const resp = await fetch(CONV_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: parseInt(userId) })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      activeSessionId = data.conversation_id;
+      // fetch list to show the new "New Conversation" in sidebar
+      await fetchConversations();
+      return activeSessionId;
+    }
+  } catch (err) {
+    console.error("Session creation failed:", err);
+  }
+  return 1; // last resort fallback
+};
 
 stopButton.addEventListener("click", () => {
   if (activeAbortController) {
@@ -1074,7 +1319,11 @@ const renderConversations = (conversations) => {
 
     const topicBtn = row.querySelector(".history-topic");
     topicBtn.addEventListener("click", () => {
-      if (isSending) return;
+      // Allow background generation. Just reset the composer so user can chat in the new conversation
+      if (isSending) {
+        setComposerBusy(false);
+        activeAbortController = null;
+      }
       loadConversation(conv.id);
     });
 
@@ -1221,7 +1470,10 @@ const loadConversation = async (sessionId) => {
 };
 
 const startNewChat = () => {
-  if (isSending) return;
+  if (isSending) {
+    setComposerBusy(false);
+    activeAbortController = null;
+  }
   activeSessionId = null;
   chatWindow.innerHTML = "";
   syncStageState();

@@ -944,8 +944,12 @@ h3 {
   margin-top: 18px;
 }
 
-.message+.message.user {
+.message.assistant+.message.user {
   margin-top: 48px;
+}
+
+.message.user+.message.user {
+  margin-top: 12px;
 }
 
 .message {
@@ -1263,7 +1267,7 @@ h3 {
 }
 
 .message.user .message-card.is-editing {
-  background: linear-gradient(180deg, #b05436 0%, #9c452a 100%);
+  background: linear-gradient(180deg, #c64800 0%, #cb5f00 100%);
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -1505,21 +1509,23 @@ h3 {
 }
 
 .composer-top {
-  margin-bottom: 10px;
-}
-
-.composer-toolbar,
-.composer-tools {
+  margin-bottom: 8px;
   display: flex;
-  align-items: center;
-  gap: 0;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .composer-toolbar {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  min-height: 42px;
-  color: var(--text);
+  width: 100%;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .icon-tool {
@@ -1554,7 +1560,6 @@ h3 {
 
 .agent-selector {
   position: relative;
-  margin-left: -3px;
 }
 
 .agent-trigger.is-open {
@@ -1743,6 +1748,197 @@ h3 {
   color: rgba(161, 184, 150, 0.55);
 }
 
+.attachment-selector {
+  position: relative;
+}
+
+.attachment-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 14px);
+  min-width: 220px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(20, 24, 22, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 0 0 1px rgba(161, 184, 150, 0.12),
+    0 24px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transform-origin: bottom left;
+  z-index: 100;
+}
+
+.attachment-menu[hidden] {
+  display: none !important;
+}
+
+.attachment-menu:not([hidden]) {
+  animation: agent-pop 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.attachment-menu-label {
+  margin: 0 0 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.attachment-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 13px;
+  color: rgba(234, 236, 236, 0.85);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.attachment-option-btn:hover {
+  background: rgba(161, 184, 150, 0.1);
+  color: #eaecec;
+}
+
+.attachment-option-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(156, 195, 255, 0.08);
+  border: 1px solid rgba(156, 195, 255, 0.15);
+  color: #9cc3ff;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.attachment-option-btn:hover .attachment-option-icon {
+  background: rgba(156, 195, 255, 0.14);
+  box-shadow: 0 0 12px rgba(156, 195, 255, 0.2);
+}
+
+.attachment-option-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.attachment-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.attachment-option-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #eaecec;
+}
+
+.attachment-option-desc {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.38);
+  line-height: 1.3;
+}
+
+
+
+.composer-attachments[hidden] {
+  display: none !important;
+}
+
+.attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  max-width: 200px;
+  transition: all 200ms ease;
+  animation: chip-pop 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes chip-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.attachment-chip.is-uploading {
+  border-color: rgba(156, 195, 255, 0.3);
+  background: rgba(156, 195, 255, 0.05);
+}
+
+.attachment-chip.is-success {
+  border-color: rgba(161, 184, 150, 0.3);
+  background: rgba(161, 184, 150, 0.05);
+}
+
+.attachment-chip-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: #9cc3ff;
+}
+
+.attachment-chip.is-success .attachment-chip-icon {
+  color: #a1b896;
+}
+
+.attachment-chip-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #eaecec;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-chip-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.spinner-mini {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(156, 195, 255, 0.3);
+  border-top-color: #9cc3ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.success-check {
+  color: #a1b896;
+}
+
 .mode-chip-inline {
   display: flex;
   align-items: center;
@@ -1859,7 +2055,39 @@ h3 {
 .composer-box {
   display: flex;
   align-items: center;
-  gap: 12px;
+  background: #fffdf9;
+  border: 1px solid rgba(24, 35, 33, 0.08);
+  border-radius: 24px;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+:root[data-theme="dark"] .composer-box {
+  background: #1e2321;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.composer-box:focus-within {
+  border-color: rgba(217, 95, 57, 0.52);
+  box-shadow: 0 0 0 4px rgba(217, 95, 57, 0.12);
+}
+
+.composer-attachments {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 14px;
+}
+
+.composer-box textarea {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding-left: 18px;
+}
+
+.composer-box:has(.composer-attachments:not([hidden])) textarea {
+  padding-left: 10px;
+  /* Reduced padding when attachments are present */
 }
 
 textarea {
@@ -1869,23 +2097,20 @@ textarea {
   resize: none;
   overflow-y: hidden;
   padding: 16px 18px;
-  border: 1px solid rgba(24, 35, 33, 0.08);
-  border-radius: 24px;
-  background: #fffdf9;
   color: var(--text);
   outline: none;
+  border: none;
+  background: transparent;
 }
 
-textarea:focus {
-  border-color: rgba(217, 95, 57, 0.52);
-  box-shadow: 0 0 0 4px rgba(217, 95, 57, 0.12);
-}
+
 
 .composer-actions {
   position: relative;
   width: 52px;
   height: 52px;
   flex-shrink: 0;
+  margin-bottom: 3px;
 }
 
 .send-button,
@@ -2276,6 +2501,16 @@ textarea:disabled {
   background: linear-gradient(180deg, #b95431 0%, #a64521 100%);
   color: #fffaf4;
 }
+
+:root[data-theme="dark"] .message.user .message-card.file-card-wrapper,
+.message.user .message-card.file-card-wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: var(--text) !important;
+}
+
 
 /* Assistant prose — dark mode: transparent, inherit theme text */
 :root[data-theme="dark"] .message.assistant .message-card {
@@ -3084,4 +3319,74 @@ html.theme-transition::view-transition-new(root) {
 :root[data-theme="dark"] .acct-dob-group input[type="number"]:not(:disabled):focus {
   border-color: rgba(219, 111, 73, 0.5);
   box-shadow: 0 0 0 4px rgba(219, 111, 73, 0.12);
+}
+
+/* File Attachment Card in Chat */
+.file-attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  margin: 4px 0;
+  min-width: 220px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+:root[data-theme="dark"] .file-attachment-card {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: none;
+}
+
+.file-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: #0078d4;
+  color: #ffffff;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.file-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.file-status-icon {
+  margin-left: auto;
+  color: #a1b896;
+  display: grid;
+  place-items: center;
+}
+
+.file-status-icon svg {
+  width: 16px;
+  height: 16px;
 }

@@ -1,4 +1,11 @@
+import sys
+import os
+
+# Ensure the root project directory is in sys.path so 'backend' is recognized as a module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI, BackgroundTasks
+
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -18,6 +25,11 @@ from backend.database.connection import SessionLocal
 import hashlib
 from backend.database.message_repo import save_message, get_messages
 from backend.config import CHAT_MODEL
+from fastapi import File, UploadFile
+from backend.rag.pdf_utils import extract_text_from_file, chunk_text
+from backend.rag.vector_store import VectorStore
+import shutil
+import os
 
 def get_conversation_history(db, conversation_id):
     messages = get_messages(db, conversation_id)
@@ -448,12 +460,65 @@ def delete_conversation(conversation_id: int):
         
         db.delete(conv)
         db.commit()
+
+        # Delete RAG data if exists
+        rag_path = f"backend/data/rag/{conversation_id}.marker"
+        if os.path.exists(rag_path):
+            os.remove(rag_path)
+        
+        # NOTE: In a production app, you might also want to delete the namespace in Pinecone
+        # but for now we just remove the local marker.
+
         return {"success": True}
     except Exception as e:
         db.rollback()
         return {"error": str(e)}
     finally:
         db.close()
+
+@app.post("/api/rag/upload")
+async def upload_document(conversation_id: int, file: UploadFile = File(...)):
+    try:
+        # Create temp path for uploaded file
+        temp_path = f"backend/data/rag/temp_{file.filename}"
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Extract and chunk
+        print(f"Extracting text from {temp_path}...")
+        text = extract_text_from_file(temp_path)
+        print(f"Extracted {len(text)} characters. Chunking...")
+        chunks = chunk_text(text)
+        
+        # Add chunks to Pinecone
+        print(f"Indexing {len(chunks)} chunks for conversation {conversation_id}...")
+        store = VectorStore()
+        store.add_chunks(chunks, conversation_id)
+        print("Indexing complete.")
+        
+        # Persist the upload action in the chat history
+        db = SessionLocal()
+        try:
+            save_message(db, conversation_id, "user", f"Uploaded file: {file.filename}")
+        except Exception as e:
+            print(f"Failed to save upload message: {e}")
+        finally:
+            db.close()
+        
+        # We still create a small marker file to know RAG is enabled for this conv
+        rag_marker = f"backend/data/rag/{conversation_id}.marker"
+        with open(rag_marker, "w") as f:
+            f.write("rag_enabled")
+        
+        # Clean up temp file
+        os.remove(temp_path)
+        
+        return {"success": True, "message": f"Successfully indexed {len(chunks)} chunks in Pinecone for conversation {conversation_id}"}
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"UPLOAD ERROR: {error_details}")
+        return {"error": str(e)}
 
 class ChatRequest(BaseModel):
     message: str
@@ -476,16 +541,29 @@ def chat(req: ChatRequest):
         # 🔹 Save user message
         save_message(db, req.conversation_id, "user", req.message)
 
+        # 🔹 Check for RAG context
+        rag_context = ""
+        rag_marker = f"backend/data/rag/{req.conversation_id}.marker"
+        if os.path.exists(rag_marker):
+            store = VectorStore()
+            results = store.search(req.message, req.conversation_id, top_k=3)
+            if results:
+                rag_context = "\n\nContext from uploaded documents:\n" + "\n".join([r["chunk"] for r in results])
+
         # 🔬 Deep Research → stateless
         if req.mode == "Deep Research":
-            reply = deep_agent.run(req.message)
+            reply = deep_agent.run(req.message + rag_context)
 
         # 🧠 General Chat → stateful
         else:
             history = get_conversation_history(db, req.conversation_id)
+            
+            prompt_with_context = req.message
+            if rag_context:
+                prompt_with_context = f"CONTEXT FROM UPLOADED DOCUMENTS:\n{rag_context}\n\nUSER QUESTION: {req.message}"
 
             reply = general_agent.run_with_history(
-                req.message,
+                prompt_with_context,
                 history
             )
 
@@ -499,3 +577,22 @@ def chat(req: ChatRequest):
 
     finally:
         db.close()
+
+class AbortMessageRequest(BaseModel):
+    conversation_id: str
+    message: str
+
+@app.post("/api/chat/save_aborted")
+def save_aborted_message(req: AbortMessageRequest):
+    db = SessionLocal()
+    try:
+        save_message(db, req.conversation_id, "assistant", req.message)
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("backend.app:app", host="0.0.0.0", port=8000, reload=True)

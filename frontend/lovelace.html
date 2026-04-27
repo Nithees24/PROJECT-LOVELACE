@@ -158,11 +158,34 @@
           </svg>
         </button>
         <div class="composer-top">
+
           <div class="composer-toolbar">
             <div class="composer-tools">
-              <button class="icon-tool plain-icon" type="button" aria-label="Add attachments" title="Add attachments">
-                <span>+</span>
-              </button>
+              <div class="attachment-selector">
+                <button class="icon-tool plain-icon" id="attachmentTrigger" type="button" aria-label="Add attachments" title="Add attachments">
+                  <span>+</span>
+                </button>
+                <div class="attachment-menu" id="attachmentMenu" hidden>
+                  <p class="attachment-menu-label">Add Content</p>
+                  <button class="attachment-option-btn" type="button" id="uploadDocBtn">
+                    <span class="attachment-option-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                    </span>
+                    <span class="attachment-option-body">
+                      <span class="attachment-option-title">Upload Document</span>
+                      <span class="attachment-option-desc">PDF, DOCX, TXT, XLSX</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <input type="file" id="docInput" accept=".pdf,.docx,.txt,.xlsx" hidden>
+
               <div class="agent-selector">
                 <button class="icon-tool plain-icon agent-trigger" id="agentTrigger" type="button"
                   aria-label="Select agent" aria-haspopup="true" aria-expanded="false" title="Select agent">
@@ -212,9 +235,12 @@
             </div>
           </div>
         </div>
-        <label class="composer-box" for="promptInput">
-          <textarea id="promptInput" rows="1"
-            placeholder="Ask Lovelace a science question, request a comparison, or trigger deep search..."></textarea>
+        <div class="composer-input-row" style="display: flex; gap: 12px; align-items: flex-end;">
+          <label class="composer-box" for="promptInput" style="flex: 1;">
+            <div class="composer-attachments" id="composerAttachments" hidden></div>
+            <textarea id="promptInput" rows="1"
+              placeholder="Ask Lovelace a science question, request a comparison, or trigger deep search..."></textarea>
+          </label>
           <div class="composer-actions">
             <button class="send-button" type="submit" aria-label="Send message" title="Send message">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -227,7 +253,7 @@
               </svg>
             </button>
           </div>
-        </label>
+        </div>
       </form>
       <p class="composer-note">Lovelace is an AI and can make mistakes</p>
     </main>
