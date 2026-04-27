@@ -506,7 +506,9 @@ async def upload_document(conversation_id: int, file: UploadFile = File(...)):
             db.close()
         
         # We still create a small marker file to know RAG is enabled for this conv
-        rag_marker = f"backend/data/rag/{conversation_id}.marker"
+        marker_dir = "backend/rag/rag_state"
+        os.makedirs(marker_dir, exist_ok=True)
+        rag_marker = f"{marker_dir}/{conversation_id}.marker"
         with open(rag_marker, "w") as f:
             f.write("rag_enabled")
         
@@ -543,7 +545,7 @@ def chat(req: ChatRequest):
 
         # 🔹 Check for RAG context
         rag_context = ""
-        rag_marker = f"backend/data/rag/{req.conversation_id}.marker"
+        rag_marker = f"backend/rag/rag_state/{req.conversation_id}.marker"
         if os.path.exists(rag_marker):
             store = VectorStore()
             results = store.search(req.message, req.conversation_id, top_k=3)
