@@ -448,7 +448,7 @@ def rename_conversation(conversation_id: int, req: RenameConversationRequest):
         db.close()
 
 @app.delete("/api/conversations/{conversation_id}")
-def delete_conversation(conversation_id: int):
+def delete_conversation(conversation_id: int, background_tasks: BackgroundTasks):
     db = SessionLocal()
     try:
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
@@ -462,12 +462,18 @@ def delete_conversation(conversation_id: int):
         db.commit()
 
         # Delete RAG data if exists
-        rag_path = f"backend/data/rag/{conversation_id}.marker"
+        rag_path = f"backend/rag/rag_state/{conversation_id}.marker"
         if os.path.exists(rag_path):
             os.remove(rag_path)
-        
-        # NOTE: In a production app, you might also want to delete the namespace in Pinecone
-        # but for now we just remove the local marker.
+            # Delete the corresponding namespace in Pinecone in the background
+            from backend.rag.vector_store import VectorStore
+            def remove_namespace():
+                try:
+                    store = VectorStore()
+                    store.delete_namespace(conversation_id)
+                except Exception as e:
+                    print(f"Background task failed to delete namespace: {e}")
+            background_tasks.add_task(remove_namespace)
 
         return {"success": True}
     except Exception as e:
@@ -481,6 +487,7 @@ async def upload_document(conversation_id: int, file: UploadFile = File(...)):
     try:
         # Create temp path for uploaded file
         temp_path = f"backend/data/rag/temp_{file.filename}"
+        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
@@ -555,6 +562,7 @@ def chat(req: ChatRequest):
         # 🔬 Deep Research → stateless
         if req.mode == "Deep Research":
             reply = deep_agent.run(req.message + rag_context)
+            sources = []
 
         # 🧠 General Chat → stateful
         else:
@@ -564,7 +572,7 @@ def chat(req: ChatRequest):
             if rag_context:
                 prompt_with_context = f"CONTEXT FROM UPLOADED DOCUMENTS:\n{rag_context}\n\nUSER QUESTION: {req.message}"
 
-            reply = general_agent.run_with_history(
+            reply, sources = general_agent.run_with_history(
                 prompt_with_context,
                 history
             )
@@ -572,7 +580,7 @@ def chat(req: ChatRequest):
         # 🔹 Save assistant reply
         save_message(db, req.conversation_id, "assistant", reply)
 
-        return {"reply": reply}
+        return {"reply": reply, "sources": sources}
 
     except Exception as e:
         return {"error": str(e)}

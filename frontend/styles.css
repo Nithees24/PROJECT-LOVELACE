@@ -1433,6 +1433,121 @@ h3 {
   }
 }
 
+.msg-sources-container {
+  position: relative;
+}
+
+.msg-sources-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  max-width: 90vw;
+  padding: 12px;
+  background: rgba(255, 253, 248, 0.98);
+  border: 1px solid rgba(24, 35, 33, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(34, 49, 45, 0.15);
+  backdrop-filter: blur(16px);
+  z-index: 20;
+  animation: dropdown-pop 200ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.msg-sources-dropdown[hidden] {
+  display: none !important;
+}
+
+:root[data-theme="dark"] .msg-sources-dropdown {
+  background: rgba(24, 35, 33, 0.98);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.sources-dropdown-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 4px;
+  padding-left: 4px;
+}
+
+.sources-dropdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.source-item-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(24, 35, 33, 0.03);
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+
+:root[data-theme="dark"] .source-item-link {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.source-item-link:hover {
+  background: rgba(24, 35, 33, 0.06);
+  transform: translateY(-1px);
+}
+
+:root[data-theme="dark"] .source-item-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.source-item-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+  display: grid;
+  place-items: center;
+}
+
+.source-item-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.source-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.source-item-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-item-url {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .model-info {
   margin: 0;
   font-size: 0.75rem;

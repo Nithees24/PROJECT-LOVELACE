@@ -1,5 +1,6 @@
 from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
+from pinecone import Pinecone
 from backend.config import PINECONE_API_KEY, PINECONE_INDEX
 import os
 
@@ -46,6 +47,16 @@ class VectorStore:
             {"chunk": doc.page_content, "score": score}
             for doc, score in results
         ]
+
+    def delete_namespace(self, conversation_id: int):
+        """Deletes all vectors in the namespace associated with a conversation."""
+        try:
+            pc = Pinecone(api_key=PINECONE_API_KEY)
+            index = pc.Index(self.index_name)
+            index.delete(delete_all=True, namespace=f"conv_{conversation_id}")
+            print(f"Deleted Pinecone namespace for conversation {conversation_id}")
+        except Exception as e:
+            print(f"Failed to delete Pinecone namespace: {e}")
 
     def load(self, file_path):
         """No-op for Pinecone as it's a cloud database."""
