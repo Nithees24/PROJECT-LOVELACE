@@ -2,11 +2,12 @@ from sqlalchemy.orm import Session
 from backend.database.message_model import Message
 
 
-def save_message(db: Session, conversation_id: int, role: str, content: str):
+def save_message(db: Session, conversation_id: int, role: str, content: str, sources: str = None):
     message = Message(
         conversation_id=conversation_id,
         role=role,
-        content=content
+        content=content,
+        sources=sources
     )
 
     db.add(message)

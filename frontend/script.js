@@ -216,7 +216,7 @@ const createMessage = (role, content, options = {}) => {
   article.append(card);
 
   if (role === "assistant" && !options.pending && !options.error) {
-    appendAssistantFooter(article, content);
+    appendAssistantFooter(article, content, options.sources || []);
   }
   const isFileMsg = content && content.startsWith("Uploaded file: ");
   if (role === "user" && !isFileMsg) {
@@ -535,6 +535,11 @@ const syncStageState = () => {
   chatWindow.classList.toggle("is-empty", !hasMessages);
   chatIntro.hidden = false;
   chatStage.classList.toggle("is-empty-state", !hasMessages);
+
+  // Reset the scroll button when there are no messages
+  if (!hasMessages) {
+    scrollToBottomBtn.classList.remove("is-visible");
+  }
 };
 
 const updateAgentUI = () => {
@@ -1504,7 +1509,7 @@ const loadConversation = async (sessionId) => {
     const data = await res.json();
     if (data.success) {
       data.messages.forEach(msg => {
-        const msgEl = createMessage(msg.role, msg.content);
+        const msgEl = createMessage(msg.role, msg.content, { sources: msg.sources || [] });
         chatWindow.append(msgEl);
       });
       syncStageState();

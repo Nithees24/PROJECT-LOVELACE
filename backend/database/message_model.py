@@ -15,4 +15,6 @@ class Message(Base):
 
     content = Column(Text, nullable=False)
 
+    sources = Column(Text, nullable=True)  # JSON-serialized list of search sources
+
     timestamp = Column(DateTime, default=datetime.utcnow)

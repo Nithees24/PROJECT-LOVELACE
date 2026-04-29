@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 
 # Ensure the root project directory is in sys.path so 'backend' is recognized as a module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -418,11 +419,24 @@ def get_conversation_messages_endpoint(conversation_id: int):
     db = SessionLocal()
     try:
         messages = get_messages(db, conversation_id)
+        result = []
+        for m in messages:
+            msg_data = {
+                "role": m.role,
+                "content": m.content,
+                "timestamp": m.timestamp.isoformat()
+            }
+            if m.sources:
+                try:
+                    msg_data["sources"] = json.loads(m.sources)
+                except (json.JSONDecodeError, TypeError):
+                    msg_data["sources"] = []
+            else:
+                msg_data["sources"] = []
+            result.append(msg_data)
         return {
             "success": True,
-            "messages": [
-                {"role": m.role, "content": m.content, "timestamp": m.timestamp.isoformat()} for m in messages
-            ]
+            "messages": result
         }
     except Exception as e:
         return {"error": str(e)}
@@ -577,8 +591,9 @@ def chat(req: ChatRequest):
                 history
             )
 
-        # 🔹 Save assistant reply
-        save_message(db, req.conversation_id, "assistant", reply)
+        # 🔹 Save assistant reply (with sources as JSON)
+        sources_json = json.dumps(sources) if sources else None
+        save_message(db, req.conversation_id, "assistant", reply, sources=sources_json)
 
         return {"reply": reply, "sources": sources}
 
