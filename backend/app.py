@@ -595,7 +595,7 @@ def chat(req: ChatRequest):
         sources_json = json.dumps(sources) if sources else None
         save_message(db, req.conversation_id, "assistant", reply, sources=sources_json)
 
-        return {"reply": reply, "sources": sources}
+        return {"reply": reply, "sources": sources, "model": CHAT_MODEL}
 
     except Exception as e:
         return {"error": str(e)}

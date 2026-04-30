@@ -6,11 +6,21 @@ load_dotenv()
 
 PRODUCTION = os.getenv("PRODUCTION", "False").lower() == "true"
 
-# Fast model for general chat — low latency
-CHAT_MODEL = "gemini-3.1-flash-lite-preview"
+# ──────────────────────────────────────────────
+# LLM Provider Switch
+# Set to True  → Ollama Cloud
+# Set to False → Google GenAI
+# ──────────────────────────────────────────────
+OLLAMA_SWITCH = True
 
-# Powerful model for deep research — higher quality
-LLM_MODEL = "gemma-4-31b-it"
+if OLLAMA_SWITCH:
+    # Ollama Cloud models
+    CHAT_MODEL = "gemma4:31b-cloud"    # Gemma 4 cloud model for general chat
+    LLM_MODEL  = "gemma4:31b-cloud"    # Gemma 4 cloud model for deep research
+else:
+    # Google GenAI models
+    CHAT_MODEL = "gemini-3.1-flash-lite-preview"   # Fast model for general chat
+    LLM_MODEL  = "gemma-4-31b-it"                  # Powerful model for deep research
 
 TEMPERATURE = 0.2
 
