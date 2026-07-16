@@ -1,3 +1,6 @@
+from backend.config import DOC_CONTENT_CHARS
+
+
 class Synthesizer:
     def __init__(self, llm_client):
         self.llm = llm_client
@@ -10,8 +13,9 @@ class Synthesizer:
         if not content.strip():
             return "No content available to summarize."
 
-        # limit content size (important!)
-        content = content[:2000]
+        # Same budget the scraper stores (BUG-21) — nothing collected is
+        # silently discarded before summarization
+        content = content[:DOC_CONTENT_CHARS]
 
         prompt = f"""
         You are an expert research assistant.

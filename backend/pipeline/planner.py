@@ -1,5 +1,8 @@
 import json
 
+from backend.utils.logger import logger
+
+
 class Planner:
     def __init__(self, llm_client):
         self.llm_client = llm_client
@@ -36,21 +39,26 @@ class Planner:
         """
 
     def _parse_response(self, response):
+        # Only JSON-shaped failures fall back; anything else should surface
+        # instead of being silently swallowed (BUG-16)
         try:
             return json.loads(response)
-        except:
+        except (json.JSONDecodeError, TypeError):
             try:
                 start = response.find("{")
                 end = response.rfind("}") + 1
 
                 if start == -1 or end == 0:
-                    raise ValueError("No JSON found")
+                    raise ValueError("No JSON object found in LLM response")
 
                 cleaned = response[start:end]
                 return json.loads(cleaned)
 
-            except:
-                # fallback
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(
+                    f"[Planner] Could not parse LLM output as JSON ({e}); "
+                    f"defaulting to normal mode. Raw output: {response[:200]!r}"
+                )
                 return {
                     "mode": "normal",
                     "steps": []

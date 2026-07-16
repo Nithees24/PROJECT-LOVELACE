@@ -16,6 +16,7 @@ rag_state/
 
 # Logs
 *.log
+logs/
 
 # Environment variables
 .env
@@ -35,3 +36,6 @@ dist/
 
 # Frontend Dependencies (if your website uses JavaScript/Node.js for the frontend)
 node_modules/
+
+# Audit / analysis reports (may quote source code and line numbers)
+reports/

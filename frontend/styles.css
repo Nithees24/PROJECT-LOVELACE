@@ -3510,3 +3510,29 @@ html.theme-transition::view-transition-new(root) {
   width: 16px;
   height: 16px;
 }
+
+.history-title-text {
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+
+/* Horizontal soft pulse loader for generating conversation titles */
+.title-loader-bar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--muted);
+  opacity: 0.15;
+  animation: title-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes title-pulse {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

@@ -1,47 +1,69 @@
 import sys
 import os
 import json
+import threading
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 # Ensure the root project directory is in sys.path so 'backend' is recognized as a module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, BackgroundTasks
+# Anchor all filesystem paths to the repo root (like logger.py does) so the
+# server works regardless of the CWD it was launched from (BUG-14)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RAG_STATE_DIR = PROJECT_ROOT / "backend" / "rag" / "rag_state"
+RAG_TEMP_DIR = PROJECT_ROOT / "backend" / "data" / "rag"
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+import hashlib
+import shutil
+import time
+import traceback
 import uuid
-from backend.utils.email_utils import send_verification_email
-from backend.config import BASE_URL
+from datetime import datetime, timedelta
 
+from fastapi import FastAPI, BackgroundTasks, Request, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import func
+
+from backend.utils.logger import logger
+from backend.utils.email_utils import send_verification_email
+from backend.config import BASE_URL, CHAT_MODEL, RAG_SCORE_THRESHOLD, PRODUCTION
 from backend.llm.llm_client import LLMClient
 from backend.agents.general_chat_agent import GeneralChatAgent
 from backend.agents.deep_research_agent import DeepResearchAgent
 from backend.pipeline.planner import Planner
-from backend.database.connection import create_tables
-from backend.database import message_model
-from backend.database import conversation_model
+from backend.database.connection import create_tables, SessionLocal
 from backend.database.user_model import User
-from backend.database.connection import SessionLocal
-import hashlib
-from backend.database.message_repo import save_message, get_messages
-from backend.config import CHAT_MODEL
-from fastapi import File, UploadFile
+from backend.database.conversation_model import Conversation
+from backend.database.message_model import Message
+from backend.database.message_repo import save_message, get_messages, get_conversation_history
 from backend.rag.pdf_utils import extract_text_from_file, chunk_text
 from backend.rag.vector_store import VectorStore
-import shutil
-import os
 
-def get_conversation_history(db, conversation_id):
-    messages = get_messages(db, conversation_id)
-    history = [
-        {"role": msg.role, "content": msg.content}
-        for msg in messages
-    ]
-    return history[-20:]
-app = FastAPI()
+# Globals populated by the lifespan handler at startup (BUG-17). Importing
+# this module is side-effect-free: no DB connection, no LLM client work.
+llm_client = None
+general_agent = None
+deep_agent = None
+planner = None
 
-create_tables()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global llm_client, general_agent, deep_agent, planner
+    create_tables()
+    llm_client = LLMClient()
+    llm_client.probe()  # fail loudly at boot on a bad model name (BUG-02)
+    general_agent = GeneralChatAgent(llm_client)
+    deep_agent = DeepResearchAgent(llm_client)
+    planner = Planner(llm_client)
+    logger.info("Startup complete: database ready, agents initialized.")
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # ✅ Enable CORS (frontend can call backend)
 app.add_middleware(
@@ -52,23 +74,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Initialize once
-llm_client = LLMClient()
-general_agent = GeneralChatAgent(llm_client)
-deep_agent = DeepResearchAgent(llm_client)
-planner = Planner(llm_client)
-
-from datetime import datetime, timedelta
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(f"Incoming request: {request.method} {request.url.path} from client {client_host}")
+    
+    try:
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        logger.info(f"Completed request: {request.method} {request.url.path} - Status: {response.status_code} - Processed in {process_time:.2f}ms")
+        return response
+    except Exception as e:
+        process_time = (time.time() - start_time) * 1000
+        logger.error(f"Request failed: {request.method} {request.url.path} - Error: {str(e)} - Processed in {process_time:.2f}ms", exc_info=True)
+        raise e
 
 class CheckEmailRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class SignupRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     first_name: str
     last_name: str
@@ -79,11 +109,34 @@ class SignupRequest(BaseModel):
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
+def normalize_email(email: str) -> str:
+    """Lowercase so A@x.com and a@x.com can't become two accounts (BUG-26)."""
+    return email.strip().lower()
+
+def parse_dob(dob_str: str):
+    """Strictly validate a YYYY-MM-DD date of birth (BUG-27).
+
+    Returns (normalized_dob_string, age). Raises ValueError for impossible
+    calendar dates (e.g. 2000-02-31) or dates in the future."""
+    dob_date = datetime.strptime(dob_str.strip(), "%Y-%m-%d")
+    today = datetime.utcnow()
+    if dob_date > today:
+        raise ValueError("date of birth is in the future")
+    age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+    return dob_date.strftime("%Y-%m-%d"), age
+
+INVALID_DOB_ERROR = "Invalid date of birth: please enter a real calendar date (YYYY-MM-DD) that is not in the future."
+
+def find_user_by_email(db, email: str):
+    """Case-insensitive lookup — tolerates mixed-case emails stored before
+    normalization was introduced."""
+    return db.query(User).filter(func.lower(User.email) == normalize_email(email)).first()
+
 @app.post("/api/auth/check-email")
 def check_email(req: CheckEmailRequest):
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == req.email).first()
+        user = find_user_by_email(db, req.email)
         return {"exists": user is not None}
     except Exception as e:
         return {"error": str(e)}
@@ -94,30 +147,31 @@ def check_email(req: CheckEmailRequest):
 def register(req: SignupRequest, background_tasks: BackgroundTasks):
     db = SessionLocal()
     try:
-        exists = db.query(User).filter(User.email == req.email).first()
+        email = normalize_email(req.email)
+        exists = find_user_by_email(db, email)
         if exists:
             return {"error": "Email already registered"}
         
-        # Calculate age if dob is provided
+        # Validate dob strictly — reject impossible dates instead of silently
+        # storing them with a NULL age (BUG-27)
+        dob = None
         calculated_age = None
         if req.dob:
             try:
-                dob_date = datetime.strptime(req.dob, "%Y-%m-%d")
-                today = datetime.utcnow()
-                calculated_age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                dob, calculated_age = parse_dob(req.dob)
             except ValueError:
-                pass # Fallback if date is invalid
+                return {"error": INVALID_DOB_ERROR}
 
         verification_token = str(uuid.uuid4())
 
         new_user = User(
-            email=req.email,
+            email=email,
             password_hash=hash_password(req.password),
             first_name=req.first_name,
             last_name=req.last_name,
             role=req.role,
             age=calculated_age,
-            dob=req.dob,
+            dob=dob,
             gender=req.gender,
             verification_token=verification_token
         )
@@ -126,7 +180,7 @@ def register(req: SignupRequest, background_tasks: BackgroundTasks):
 
         background_tasks.add_task(
             send_verification_email,
-            req.email,
+            email,
             verification_token,
             BASE_URL
         )
@@ -170,13 +224,13 @@ def verify_email(token: str):
         db.close()
 
 class ResendEmailRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 @app.post("/api/auth/resend-email")
 def resend_email(req: ResendEmailRequest, background_tasks: BackgroundTasks):
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == req.email).first()
+        user = find_user_by_email(db, req.email)
         if not user:
             return {"error": "User not found"}
         if user.is_verified:
@@ -220,12 +274,15 @@ def resend_email(req: ResendEmailRequest, background_tasks: BackgroundTasks):
 def login(req: LoginRequest):
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == req.email).first()
+        user = find_user_by_email(db, req.email)
         if not user:
             return {"error": "User not found"}
         
         if user.password_hash != hash_password(req.password):
             return {"error": "Incorrect password"}
+            
+        if not user.is_verified:
+            return {"error": "Please verify your email address before logging in."}
             
         return {"success": True, "user_id": user.id, "first_name": user.first_name}
     except Exception as e:
@@ -282,13 +339,10 @@ def update_profile(req: UpdateProfileRequest):
         if req.last_name is not None:
             user.last_name = req.last_name
         if req.dob is not None:
-            user.dob = req.dob
             try:
-                dob_date = datetime.strptime(req.dob, "%Y-%m-%d")
-                today = datetime.utcnow()
-                user.age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                user.dob, user.age = parse_dob(req.dob)
             except ValueError:
-                pass
+                return {"error": INVALID_DOB_ERROR}
         if req.gender is not None:
             user.gender = req.gender
 
@@ -319,8 +373,6 @@ def change_password(req: ChangePasswordRequest):
     finally:
         db.close()
 
-from backend.database.conversation_model import Conversation
-
 class CreateConversationRequest(BaseModel):
     user_id: int
 
@@ -328,6 +380,11 @@ class CreateConversationRequest(BaseModel):
 def create_conversation(req: CreateConversationRequest):
     db = SessionLocal()
     try:
+        # Second line of defence on top of the DB foreign key (BUG-25)
+        user = db.query(User).filter(User.id == req.user_id).first()
+        if not user:
+            return {"error": "User not found"}
+
         new_conv = Conversation(user_id=req.user_id, title="New Conversation")
         db.add(new_conv)
         db.commit()
@@ -386,7 +443,7 @@ class RateConversationRequest(BaseModel):
 
 @app.post("/api/conversations/{conversation_id}/rate")
 def rate_conversation(conversation_id: int, req: RateConversationRequest):
-    print(f"DEBUG: Rating conversation {conversation_id} with score {req.score}")
+    logger.info(f"Rating conversation {conversation_id} with score {req.score}")
     db = SessionLocal()
     try:
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
@@ -411,7 +468,7 @@ def generate_thread_title(first_prompt: str):
         return title
     except Exception as e:
         # Fallback to snippet if LLM fails
-        print(f"Failed to generate title: {e}")
+        logger.error(f"Failed to generate title: {e}", exc_info=True)
         return first_prompt[:30] + "..." if len(first_prompt) > 30 else first_prompt
 
 @app.get("/api/messages/{conversation_id}")
@@ -469,24 +526,22 @@ def delete_conversation(conversation_id: int, background_tasks: BackgroundTasks)
         if not conv:
             return {"error": "Conversation not found"}
         
-        from backend.database.message_model import Message
         db.query(Message).filter(Message.conversation_id == conversation_id).delete()
         
         db.delete(conv)
         db.commit()
 
         # Delete RAG data if exists
-        rag_path = f"backend/rag/rag_state/{conversation_id}.marker"
-        if os.path.exists(rag_path):
-            os.remove(rag_path)
+        rag_path = RAG_STATE_DIR / f"{conversation_id}.marker"
+        if rag_path.exists():
+            rag_path.unlink()
             # Delete the corresponding namespace in Pinecone in the background
-            from backend.rag.vector_store import VectorStore
             def remove_namespace():
                 try:
                     store = VectorStore()
                     store.delete_namespace(conversation_id)
                 except Exception as e:
-                    print(f"Background task failed to delete namespace: {e}")
+                    logger.error(f"Background task failed to delete namespace: {e}", exc_info=True)
             background_tasks.add_task(remove_namespace)
 
         return {"success": True}
@@ -500,54 +555,52 @@ def delete_conversation(conversation_id: int, background_tasks: BackgroundTasks)
 async def upload_document(conversation_id: int, file: UploadFile = File(...)):
     try:
         # Create temp path for uploaded file
-        temp_path = f"backend/data/rag/temp_{file.filename}"
-        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        temp_path = RAG_TEMP_DIR / f"temp_{file.filename}"
+        RAG_TEMP_DIR.mkdir(parents=True, exist_ok=True)
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
         # Extract and chunk
-        print(f"Extracting text from {temp_path}...")
-        text = extract_text_from_file(temp_path)
-        print(f"Extracted {len(text)} characters. Chunking...")
+        logger.info(f"Extracting text from {temp_path}...")
+        text = extract_text_from_file(str(temp_path))
+        logger.info(f"Extracted {len(text)} characters. Chunking...")
         chunks = chunk_text(text)
         
         # Add chunks to Pinecone
-        print(f"Indexing {len(chunks)} chunks for conversation {conversation_id}...")
+        logger.info(f"Indexing {len(chunks)} chunks for conversation {conversation_id}...")
         store = VectorStore()
         store.add_chunks(chunks, conversation_id)
-        print("Indexing complete.")
+        logger.info("Indexing complete.")
         
         # Persist the upload action in the chat history
         db = SessionLocal()
         try:
             save_message(db, conversation_id, "user", f"Uploaded file: {file.filename}")
         except Exception as e:
-            print(f"Failed to save upload message: {e}")
+            logger.error(f"Failed to save upload message: {e}", exc_info=True)
         finally:
             db.close()
         
         # We still create a small marker file to know RAG is enabled for this conv
-        marker_dir = "backend/rag/rag_state"
-        os.makedirs(marker_dir, exist_ok=True)
-        rag_marker = f"{marker_dir}/{conversation_id}.marker"
-        with open(rag_marker, "w") as f:
-            f.write("rag_enabled")
-        
+        RAG_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        rag_marker = RAG_STATE_DIR / f"{conversation_id}.marker"
+        rag_marker.write_text("rag_enabled")
+
         # Clean up temp file
-        os.remove(temp_path)
+        temp_path.unlink()
         
         return {"success": True, "message": f"Successfully indexed {len(chunks)} chunks in Pinecone for conversation {conversation_id}"}
     except Exception as e:
-        import traceback
         error_details = traceback.format_exc()
-        print(f"UPLOAD ERROR: {error_details}")
+        logger.error(f"UPLOAD ERROR: {error_details}")
         return {"error": str(e)}
 
 class ChatRequest(BaseModel):
     message: str
     conversation_id: int
     mode: str = "Chat Agent"
-    messages: list = []
+    # NOTE: conversation history is intentionally NOT accepted from the
+    # client — it is rebuilt server-side from the database (BUG-12)
 
 # ✅ API endpoint
 @app.post("/api/chat")
@@ -555,28 +608,44 @@ def chat(req: ChatRequest):
     db = SessionLocal()
 
     try:
-        # 🔹 Smart Title Update: If it's a new conversation, title it based on the first prompt
+        # 🔹 Smart Title Update: If it's a new conversation, generate the title
+        # in PARALLEL with the main answer instead of as a blocking LLM call
+        # on the request path (BUG-03). Joined before returning so the
+        # frontend's post-reply conversation refresh sees the final title.
+        title_thread = None
+        title_result = {}
         conv = db.query(Conversation).filter(Conversation.id == req.conversation_id).first()
         if conv and conv.title == "New Conversation":
-            conv.title = generate_thread_title(req.message)
-            db.commit()
+            def _gen_title(message=req.message):
+                title_result["title"] = generate_thread_title(message)
+            title_thread = threading.Thread(target=_gen_title, daemon=True)
+            title_thread.start()
 
         # 🔹 Save user message
         save_message(db, req.conversation_id, "user", req.message)
 
         # 🔹 Check for RAG context
         rag_context = ""
-        rag_marker = f"backend/rag/rag_state/{req.conversation_id}.marker"
-        if os.path.exists(rag_marker):
+        rag_marker = RAG_STATE_DIR / f"{req.conversation_id}.marker"
+        if rag_marker.exists():
             store = VectorStore()
             results = store.search(req.message, req.conversation_id, top_k=3)
+            # Only inject chunks that are actually similar to the question;
+            # top-k alone returns the nearest chunks even when the question
+            # is unrelated to the uploaded document (BUG-13)
+            relevant = [r for r in results if r["score"] >= RAG_SCORE_THRESHOLD]
             if results:
-                rag_context = "\n\nContext from uploaded documents:\n" + "\n".join([r["chunk"] for r in results])
+                logger.info(
+                    f"[RAG] conv {req.conversation_id}: scores="
+                    f"{[round(r['score'], 3) for r in results]} "
+                    f"threshold={RAG_SCORE_THRESHOLD} kept={len(relevant)}"
+                )
+            if relevant:
+                rag_context = "\n\nContext from uploaded documents:\n" + "\n".join([r["chunk"] for r in relevant])
 
         # 🔬 Deep Research → stateless
         if req.mode == "Deep Research":
-            reply = deep_agent.run(req.message + rag_context)
-            sources = []
+            reply, sources = deep_agent.run(req.message + rag_context)
 
         # 🧠 General Chat → stateful
         else:
@@ -595,6 +664,15 @@ def chat(req: ChatRequest):
         sources_json = json.dumps(sources) if sources else None
         save_message(db, req.conversation_id, "assistant", reply, sources=sources_json)
 
+        # 🔹 Commit the title generated in parallel (finishes well before the
+        # main answer, so this join is effectively free)
+        if title_thread:
+            title_thread.join()
+            new_title = title_result.get("title")
+            if new_title:
+                conv.title = new_title
+                db.commit()
+
         return {"reply": reply, "sources": sources, "model": CHAT_MODEL}
 
     except Exception as e:
@@ -604,7 +682,7 @@ def chat(req: ChatRequest):
         db.close()
 
 class AbortMessageRequest(BaseModel):
-    conversation_id: str
+    conversation_id: int
     message: str
 
 @app.post("/api/chat/save_aborted")
@@ -618,6 +696,14 @@ def save_aborted_message(req: AbortMessageRequest):
     finally:
         db.close()
 
+@app.get("/")
+def read_root():
+    return RedirectResponse(url="/login.html")
+
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.app:app", host="0.0.0.0", port=8000, reload=True)
+    # PRODUCTION=true in .env disables the auto-reloader (BUG-15)
+    uvicorn.run("backend.app:app", host="0.0.0.0", port=8000, reload=not PRODUCTION)
+

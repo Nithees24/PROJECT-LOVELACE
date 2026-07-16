@@ -1,11 +1,10 @@
+from backend.utils.logger import logger
+from backend.config import DOC_CONTENT_CHARS
 from backend.tools.scraper import Scraper
-from backend.tools.paper_fetch import PaperFetch
-from backend.tools.pdf_parser import PDFParser
 from backend.tools.web_search import WebSearch
 from backend.pipeline.ranker import Ranker
 from backend.pipeline.synthesizer import Synthesizer
 from backend.pipeline.aggregator import Aggregator
-from backend.pipeline.planner import Planner
 from backend.pipeline.query_generator import QueryGenerator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -13,96 +12,62 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class DeepResearchAgent:
     """
        Orchestrates the full deep research pipeline:
-       Plan → Search → Scrape → Fetch Papers → Parse PDFs → Rank → Summarize → Aggregate
+       Generate Queries → Search → Scrape → Rank → Summarize → Aggregate
     """
 
     def __init__(self, llm_client):
         self.llm = llm_client
 
         # pipeline
-        self.planner = Planner(llm_client)
         self.synthesizer = Synthesizer(llm_client)
         self.ranker = Ranker()
         self.aggregator = Aggregator(llm_client)
         self.query_generator = QueryGenerator(self.llm)
 
         # tools
-        self.paper_fetch = PaperFetch()
         self.web_search = WebSearch()
         self.scraper = Scraper()
-        self.pdf_parser = PDFParser()
 
+        # Scrape budget (BUG-19): one authoritative value each, no fallback
+        # defaults elsewhere. max_total_docs caps the whole request so
+        # (queries × urls) can't fan out unboundedly.
         self.max_urls_per_query = 10
+        self.max_total_docs = 40
         self.max_docs_after_ranking = 40
 
-    def run(self, user_query: str) -> str:
+    def run(self, user_query: str):
+        """Returns (report_text, sources) where sources is a list of
+        {"title", "url"} dicts matching the [n] citations in the report."""
         try:
             queries = self.query_generator.generate(user_query)
 
-            web_docs = self._search_and_scrape(queries)
-            # paper_docs = self._fetch_and_parse_papers(user_query)  # disabled for now
-            paper_docs = []
-
-            all_docs = web_docs + paper_docs
+            all_docs = self._search_and_scrape(queries)
 
             if not all_docs:
-                return "No relevant data found."
+                return "No relevant data found.", []
 
             ranked_docs = self._rank(all_docs)
 
             summaries = self._summarize(ranked_docs)
 
             if not summaries:
-                return "Failed to generate summaries."
+                return "Failed to generate summaries.", []
 
             return self._aggregate(user_query, summaries)
 
         except Exception as e:
-            print(f"[FATAL ERROR]: {e}")
-            return "Something went wrong during deep research."
+            logger.error(f"[FATAL ERROR]: {e}", exc_info=True)
+            return "Something went wrong during deep research.", []
 
     # -----------------------------
     # Individual Steps
     # -----------------------------
-    def _scrape_single(self, url):
-        try:
-            doc = self.scraper.scrape(url)
-
-            if not doc or not isinstance(doc, dict):
-                return None
-
-            content = doc.get("content")
-            if not content or len(content) < 300:
-                return None
-
-            return {
-                "title": doc.get("title", "Web Document"),
-                "content": content[:5000],
-                "source": "web",
-                "url": url
-            }
-
-        except Exception as e:
-            print(f"[Scraper ERROR] {url}: {e}")
-            return None
-
-    def _plan(self, query):
-        try:
-            print("[1] Planning...")
-            plan = self.planner.plan(query)
-            return plan.get("steps", [])
-        except Exception as e:
-            print(f"Planner error: {e}")
-            return []
-
     def _search_and_scrape(self, queries):
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
         docs = []
-        print("[2] Web search + scraping...")
+        logger.info("[2] Web search + scraping...")
 
         if not queries:
-            print("[WARNING] No queries generated")
+            logger.warning("No queries generated")
             return docs
 
         # ✅ Trusted high-quality domains
@@ -146,30 +111,35 @@ class DeepResearchAgent:
 
                 return {
                     "title": doc.get("title", "Web Document"),
-                    "content": content[:5000],
+                    "content": content[:DOC_CONTENT_CHARS],
                     "source": "web",
                     "url": url
                 }
 
             except Exception as e:
-                print(f"[Scraper ERROR] {url}: {e}")
+                logger.error(f"[Scraper ERROR] {url}: {e}")
                 return None
 
         for q in queries:
-            print(f"[SEARCH] Query: {q}")
+            # Global cap on collected documents per research request (BUG-19)
+            if len(docs) >= self.max_total_docs:
+                logger.info(f"[SEARCH] Reached max_total_docs={self.max_total_docs}, stopping early")
+                break
+
+            logger.info(f"[SEARCH] Query: {q}")
 
             # --- Web Search ---
             try:
                 results = self.web_search.search(q)
             except Exception as e:
-                print(f"[Search ERROR] '{q}': {e}")
+                logger.error(f"[Search ERROR] '{q}': {e}")
                 continue
 
             if not results:
-                print(f"[INFO] No results for query: {q}")
+                logger.info(f"No results for query: {q}")
                 continue
 
-            max_urls = getattr(self, "max_urls_per_query", 3)
+            max_urls = self.max_urls_per_query
 
             urls_to_scrape = []
 
@@ -210,7 +180,7 @@ class DeepResearchAgent:
 
                     docs.append({
                         "title": r.get("title", "Web Document"),
-                        "content": content[:5000],
+                        "content": content[:DOC_CONTENT_CHARS],
                         "source": "web",
                         "url": url
                     })
@@ -234,87 +204,16 @@ class DeepResearchAgent:
                     seen_contents.add(key)
                     docs.append(result)
 
-        print(f"[DONE] Collected {len(docs)} documents")
-        return docs
-
-    def _fetch_and_parse_papers(self, query):
-        docs = []
-        print("[3] Paper fetch + parsing...")
-
-        try:
-            papers = self.paper_fetch.fetch(query)
-        except Exception as e:
-            print(f"Paper fetch failed: {e}")
-            return docs
-
-        for paper in papers:
-            pdf_url = paper.get("pdf_url")
-            if not pdf_url:
-                continue
-
-            try:
-                text = self.pdf_parser.parse(pdf_url)
-                if text:
-                    docs.append({
-                        "title": paper.get("title", "Research Paper"),
-                        "content": text,
-                        "source": "paper"
-                    })
-            except Exception as e:
-                print(f"PDF parsing failed for {pdf_url}: {e}")
-
+        logger.info(f"[DONE] Collected {len(docs)} documents")
         return docs
 
     def _rank(self, documents):
-        print("[4] Ranking...")
-
-        try:
-            # 🔥 Domain priority (higher = better)
-            domain_scores = {
-                "arxiv.org": 10,
-                "nature.com": 10,
-                "sciencedirect.com": 9,
-                "nasa.gov": 9,
-                "mit.edu": 9,
-                "stanford.edu": 9,
-                "ibm.com": 8,
-                "aws.amazon.com": 8,
-                "phys.org": 7,
-                "wikipedia.org": 6
-            }
-
-            def score(doc):
-                url = doc.get("url", "")
-                content = doc.get("content", "")
-
-                # 🔹 Domain score
-                domain_score = 0
-                for domain, value in domain_scores.items():
-                    if domain in url:
-                        domain_score = value
-                        break
-
-                # 🔹 Content length score
-                length_score = min(len(content) / 1000, 5)
-
-                # 🔹 Source type bonus
-                source_bonus = 2 if doc.get("source") == "paper" else 0
-
-                return domain_score + length_score + source_bonus
-
-            # 🔥 Sort documents by score (descending)
-            ranked = sorted(documents, key=score, reverse=True)
-
-            limit = getattr(self, "max_docs_after_ranking", 5)
-            return ranked[:limit]
-
-        except Exception as e:
-            print(f"[Ranking ERROR]: {e}")
-            return documents[: getattr(self, "max_docs_after_ranking", 5)]
+        logger.info("[4] Ranking...")
+        return self.ranker.rank(documents, limit=self.max_docs_after_ranking)
 
     def _summarize(self, documents):
         summaries = []
-        print("[5] Summarizing...")
+        logger.info("[5] Summarizing...")
 
         for doc in documents:
             try:
@@ -322,18 +221,19 @@ class DeepResearchAgent:
                 if summary:
                     summaries.append({
                         "summary": summary,
+                        "title": doc.get("title", "Web Document"),
                         "url": doc.get("url", "Unknown")
                     })
             except Exception as e:
-                print(f"Summarization failed: {e}")
+                logger.error(f"Summarization failed: {e}", exc_info=True)
 
         return summaries
 
     def _aggregate(self, query, summaries):
         try:
-            print("[6] Aggregating final report...")
+            logger.info("[6] Aggregating final report...")
             return self.aggregator.aggregate(query, summaries)
         except Exception as e:
-            print(f"Aggregation error: {e}")
-            return "Failed to generate final report."
+            logger.error(f"Aggregation error: {e}", exc_info=True)
+            return "Failed to generate final report.", []
             

@@ -3,12 +3,14 @@ class Aggregator:
         self.llm = llm_client
 
     def aggregate(self, query, summaries):
+        """Returns (answer_text, sources) where sources is a list of
+        {"title", "url"} dicts ordered to match the [n] citation markers."""
         print("[Aggregator] Generating final answer...")
 
         if not summaries:
-            return "No summaries available."
+            return "No summaries available.", []
 
-        # Create numbered sources
+        # Create numbered sources (structured, so the frontend can render them)
         sources = []
         formatted_summaries = []
 
@@ -16,7 +18,11 @@ class Aggregator:
             summary_text = item.get("summary", "")
             url = item.get("url", "Unknown")
 
-            sources.append((i, url))
+            sources.append({
+                "title": item.get("title", f"Source [{i}]"),
+                "url": url,
+                "content": summary_text
+            })
 
             # Attach citation marker
             formatted_summaries.append(f"[{i}] {summary_text}")
@@ -33,9 +39,9 @@ STRICT INSTRUCTIONS:
 - Use clear sections (Overview, Key Points, etc.)
 - Keep it concise but informative
 - Naturally incorporate citation numbers like [1], [2] in the answer
-- Do NOT list sources inside the answer text
+- Do NOT list sources inside the answer text (they are shown separately by the app)
 - Do NOT ask for more input
-- FORMATTING CRITICAL: Do NOT use ANY Markdown formatting (no ###, **, *, etc). Use ALL CAPS for section titles.
+- FORMATTING: Use markdown. Use bold section titles like **Overview** (NOT # headers). You may use **bold** for emphasis and simple "- " bullet points. Do NOT use tables, code blocks, or links.
 
 Query:
 {query}
@@ -49,13 +55,10 @@ FINAL ANSWER:
         try:
             answer = self.llm.generate(prompt)
 
-            # Format sources section
-            sources_text = "\n".join(
-                f"[{i}] {url}" for i, url in sources
-            )
-
-            return f"{answer}\n\n---\n**Sources:**\n{sources_text}"
+            # Sources are returned as structured data; the frontend renders
+            # them in the 'Sources' dropdown (ordered to match [n] markers).
+            return answer, sources
 
         except Exception as e:
             print(f"[Aggregator ERROR]: {e}")
-            return "Failed to generate final answer."
+            return "Failed to generate final answer.", []

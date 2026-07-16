@@ -241,6 +241,18 @@ signupDetailsForm.addEventListener("submit", async (e) => {
     statusMessage.style.color = "#ff8d72";
     return;
   }
+  // Reject impossible calendar dates like 2000-02-31 (BUG-27): JS Date
+  // silently rolls them over, so verify the components round-trip exactly.
+  const dobDate = new Date(`${dob}T00:00:00`);
+  const isRealDate = !isNaN(dobDate.getTime())
+    && dobDate.getFullYear() === Number(y)
+    && dobDate.getMonth() + 1 === Number(m)
+    && dobDate.getDate() === Number(d);
+  if (!isRealDate || dobDate > new Date()) {
+    statusMessage.textContent = "Please enter a valid date of birth (that day does not exist).";
+    statusMessage.style.color = "#ff8d72";
+    return;
+  }
   if (!gender) {
     statusMessage.textContent = "Please select your gender.";
     statusMessage.style.color = "#ff8d72";

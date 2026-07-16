@@ -1,18 +1,43 @@
 from langchain_pinecone import PineconeVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
+from ollama import Client
 from pinecone import Pinecone
-from backend.config import PINECONE_API_KEY, PINECONE_INDEX
+from backend.config import PINECONE_API_KEY, PINECONE_INDEX, OLLAMA_HOST, OLLAMA_HEADERS
 import os
 
 _embeddings_cache = {}
 
+
+class OllamaEmbeddings(Embeddings):
+    """LangChain embeddings backed by an Ollama model (e.g. bge-m3).
+
+    Uses the same host/auth configuration as LLMClient (see BUG-20 note in
+    config.py) so a single Ollama instance serves both generation and
+    embeddings. This removes the HuggingFace dependency and its network
+    call to huggingface.co on load. The embedding model must be pulled on
+    the configured host (with the default local host: `ollama pull bge-m3`).
+    """
+
+    def __init__(self, model='bge-m3', host=None):
+        self._client = Client(host=host or OLLAMA_HOST, headers=OLLAMA_HEADERS)
+        self._model = model
+
+    def embed_documents(self, texts):
+        resp = self._client.embed(model=self._model, input=list(texts))
+        return [list(vec) for vec in resp["embeddings"]]
+
+    def embed_query(self, text):
+        resp = self._client.embed(model=self._model, input=text)
+        return list(resp["embeddings"][0])
+
+
 class VectorStore:
-    def __init__(self, model_name='BAAI/bge-m3'):
-        # Use a singleton pattern for embeddings to avoid reloading the model
+    def __init__(self, model_name='bge-m3'):
+        # Use a singleton pattern for embeddings to avoid re-creating the client
         if model_name not in _embeddings_cache:
-            print(f"Loading embedding model: {model_name}...")
-            _embeddings_cache[model_name] = HuggingFaceEmbeddings(model_name=model_name)
-        
+            print(f"Loading Ollama embedding model: {model_name}...")
+            _embeddings_cache[model_name] = OllamaEmbeddings(model=model_name)
+
         self.embeddings = _embeddings_cache[model_name]
         self.index_name = PINECONE_INDEX
         

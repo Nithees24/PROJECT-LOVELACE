@@ -97,7 +97,6 @@ let activeMode = CHAT_MODE;
 let isSending = false;
 let activeAbortController = null;
 let activeSessionId = null;
-const conversationHistory = [];
 const LOVELACE_LOGO_SVG = `
   <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
     <circle cx="32" cy="32" r="6" class="logo-core"></circle>
@@ -1102,7 +1101,6 @@ composer.addEventListener("submit", (event) => {
     textCardContainer.style.marginTop = "4px"; // Tiny separator line
     textCardContainer.innerHTML = `<div class="message-text">${value}</div>`;
     groupContainer.append(textCardContainer);
-    conversationHistory.push({ role: "user", content: value });
 
     compositeMsg.append(groupContainer);
     appendUserFooter(compositeMsg);
@@ -1121,7 +1119,6 @@ composer.addEventListener("submit", (event) => {
     if (value) {
       userMessage = createMessage("user", value);
       chatWindow.append(userMessage);
-      conversationHistory.push({ role: "user", content: value });
     }
   }
 
@@ -1169,6 +1166,16 @@ composer.addEventListener("submit", (event) => {
 
   activeAbortController = new AbortController();
 
+  // Single cleanup for every exit that abandons the turn before the
+  // assistant-reply flow starts, so no branch can forget to reset the
+  // composer state (BUG-22)
+  const abandonTurn = () => {
+    pendingMessage.remove();
+    scrollSpacer.remove();
+    setComposerBusy(false);
+    activeAbortController = null;
+  };
+
   ensureSession().then(async sessionId => {
     // 1. Process upload if there's a staged file
     if (fileToUpload) {
@@ -1199,16 +1206,14 @@ composer.addEventListener("submit", (event) => {
       } catch (err) {
         if (fileMsg) fileMsg.remove();
         alert(`Upload error: ${err.message}`);
-        pendingMessage.remove();
-        scrollSpacer.remove();
-        setComposerBusy(false);
-        
+        abandonTurn();
+
         // Restore text prompt so user doesn't lose their typed message
         if (value) {
           promptInput.value = value;
           autoResize();
         }
-        
+
         return; // Stop flow completely
       }
     }
@@ -1216,9 +1221,7 @@ composer.addEventListener("submit", (event) => {
     // 2. Process text prompt if present
     if (!value) {
       // If there was ONLY a file and no prompt text, we stop here and remove the pending assistant msg
-      pendingMessage.remove();
-      scrollSpacer.remove();
-      setComposerBusy(false);
+      abandonTurn();
       return;
     }
 
@@ -1231,7 +1234,6 @@ composer.addEventListener("submit", (event) => {
         const model = payload.model || "";
 
         pendingMessage.classList.remove("is-pending");
-        conversationHistory.push({ role: "assistant", content: reply });
 
         // If it was the first message, refresh sidebar to show the generated title
         if (wasEmpty) {
@@ -1248,7 +1250,6 @@ composer.addEventListener("submit", (event) => {
         if (error.name === 'AbortError') {
           const abortedMsg = "Response generation stopped.";
           pendingMessage.querySelector(".message-text").textContent = abortedMsg;
-          conversationHistory.push({ role: "assistant", content: abortedMsg });
           
           // Save the aborted state to the backend
           fetch(`${BASE_URL}/api/chat/save_aborted`, {
@@ -1277,6 +1278,11 @@ composer.addEventListener("submit", (event) => {
         // Scroll so the response end + footer sits at the bottom of the viewport
         scrollToBottom();
       });
+  }).catch((err) => {
+    // Unexpected failure before the reply flow took over — reset the
+    // composer instead of leaving it stuck busy (BUG-22)
+    console.error("Send flow failed:", err);
+    abandonTurn();
   });
 });
 
@@ -1340,10 +1346,15 @@ const renderConversations = (conversations) => {
     const pinIndicator = conv.is_pinned ? PIN_ICON_SVG : "";
     const pinLabel = conv.is_pinned ? "Unpin" : "Pin";
 
+    const isNew = conv.title === "New Conversation";
+    const titleContent = isNew 
+      ? `<span class="title-loader-bar" title="Generating title..."></span>` 
+      : conv.title;
+
     row.innerHTML = `
       <button class="history-topic ${conv.id === activeSessionId ? "selected" : ""}" type="button" data-id="${conv.id}">
         ${pinIndicator}
-        <span class="history-title-text">${conv.title}</span>
+        <span class="history-title-text">${titleContent}</span>
       </button>
       <div class="history-actions">
         <button class="history-more" type="button" aria-label="Conversation options" aria-haspopup="true" aria-expanded="false">
@@ -1833,6 +1844,20 @@ confirmEditSaveBtn.addEventListener("click", async () => {
 
   const dob = assembleDob();
 
+  // Reject impossible calendar dates like 2000-02-31 (BUG-27): JS Date
+  // silently rolls them over, so verify the components round-trip exactly.
+  if (dob) {
+    const dobDate = new Date(`${dob}T00:00:00`);
+    const isRealDate = !isNaN(dobDate.getTime())
+      && dobDate.getFullYear() === Number(acctDobYear.value)
+      && dobDate.getMonth() + 1 === Number(acctDobMonth.value)
+      && dobDate.getDate() === Number(acctDobDay.value);
+    if (!isRealDate || dobDate > new Date()) {
+      setStatus(passwordConfirmStatus, "Please enter a valid date of birth (that day does not exist).", true);
+      return;
+    }
+  }
+
   try {
     const res = await fetch(`${AUTH_API}/profile`, {
       method: "PUT",
@@ -1913,8 +1938,13 @@ passwordSaveBtn.addEventListener("click", async () => {
     if (data.error) {
       setStatus(accountDialogStatus, data.error, true);
     } else if (data.success) {
-      setStatus(accountDialogStatus, "Password updated successfully!", false);
+      setStatus(accountDialogStatus, "Password updated successfully! Logging out...", false);
       clearPasswordFields();
+      localStorage.removeItem("lovelace_user_id");
+      localStorage.removeItem("lovelace_user_name");
+      setTimeout(() => {
+        window.location.replace("login.html");
+      }, 1500);
     }
   } catch {
     setStatus(accountDialogStatus, "Network error. Please try again.", true);

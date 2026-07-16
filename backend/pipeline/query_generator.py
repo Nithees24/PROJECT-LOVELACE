@@ -1,5 +1,7 @@
 import json
 
+from backend.utils.logger import logger
+
 
 class QueryGenerator:
     def __init__(self, llm_client):
@@ -51,10 +53,19 @@ User Query:
 
         try:
             response = self.llm.generate(prompt)
+        except Exception as e:
+            # LLM/network failure — fall back to template queries
+            logger.error(f"[QueryGenerator] LLM call failed: {e}", exc_info=True)
+            return []
+
+        try:
             parsed = self._parse_response(response)
             return parsed.get("queries", [])
-        except Exception as e:
-            print(f"[QueryGenerator LLM ERROR]: {e}")
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            logger.warning(
+                f"[QueryGenerator] LLM output was not valid JSON ({e}); "
+                f"falling back. Raw output: {response[:200]!r}"
+            )
             return []
 
     # -----------------------------
@@ -104,8 +115,11 @@ User Query:
     def _parse_response(self, response):
         try:
             return json.loads(response)
-        except:
+        except (json.JSONDecodeError, TypeError):
             start = response.find("{")
             end = response.rfind("}") + 1
-            cleaned = response[start:end]
-            return json.loads(cleaned)
+            if start == -1 or end == 0:
+                # Previously json.loads ran on an empty slice here and raised
+                # a masked error (BUG-16) — fail with a clear message instead
+                raise ValueError("No JSON object found in LLM response")
+            return json.loads(response[start:end])
