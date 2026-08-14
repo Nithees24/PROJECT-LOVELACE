@@ -103,8 +103,26 @@ setupPasswordToggle(signupConfirmPasswordInput, signupConfirmPasswordToggle);
 // Base API URL (Use configuration from window if available)
 const API_BASE = (window.LOVELACE_CONFIG && window.LOVELACE_CONFIG.API_BASE) || "http://127.0.0.1:8000/api/auth";
 
-if (localStorage.getItem("lovelace_user_id")) {
-  window.location.replace("lovelace.html");
+// The app is only functional when SERVED by the backend over HTTP. Opened
+// directly from disk (file://) it runs as a static preview: show the login UI
+// but perform no session redirects. The working app lives at localhost:8000.
+const IS_SERVED = location.protocol === "http:" || location.protocol === "https:";
+
+// Only skip the login screen when a COMPLETE session exists. The workspace
+// guard in script.js requires BOTH the user id and the bearer token (SEC-01);
+// checking only the user id here caused an infinite login<->workspace redirect
+// loop for anyone left with a stale pre-token user_id but no lovelace_token.
+// Clear any half-a-session so the loop breaks and the login form is reachable.
+if (IS_SERVED) {
+  const _existingUserId = localStorage.getItem("lovelace_user_id");
+  const _existingToken = localStorage.getItem("lovelace_token");
+  if (_existingUserId && _existingToken) {
+    window.location.replace("lovelace.html");
+  } else if (_existingUserId || _existingToken) {
+    localStorage.removeItem("lovelace_user_id");
+    localStorage.removeItem("lovelace_user_name");
+    localStorage.removeItem("lovelace_token");
+  }
 }
 
 // Step 1: Identifier
@@ -169,10 +187,11 @@ loginForm.addEventListener("submit", async (e) => {
       document.getElementById("loginSuccessMsg").textContent = `Welcome back, ${data.first_name || 'Researcher'}!`;
       setStep(8);
       
-      // Save user info for the workspace
+      // Save user info + bearer token for the workspace (SEC-01)
       localStorage.setItem("lovelace_user_id", data.user_id);
       localStorage.setItem("lovelace_user_name", data.first_name);
-      
+      localStorage.setItem("lovelace_token", data.token);
+
       setTimeout(() => window.location.replace("lovelace.html"), 1500);
     }
   } catch (err) {

@@ -38,6 +38,86 @@ def _run_migrations():
         ))
         conn.commit()
 
+        # Deep-research trace column (plan + streamed activity events) so a
+        # research run can be replayed when its conversation is reopened.
+        result = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'messages' AND column_name = 'research_trace'"
+        ))
+        if result.fetchone() is None:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN research_trace TEXT"))
+            conn.commit()
+            print("Migration: added 'research_trace' column to messages table.")
+
+        # Document-agent trace (JSON): the brief, the interview Q&A and the
+        # streamed activity, so a document run replays like a research one.
+        result = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'messages' AND column_name = 'doc_trace'"
+        ))
+        if result.fetchone() is None:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN doc_trace TEXT"))
+            conn.commit()
+            print("Migration: added 'doc_trace' column to messages table.")
+
+        # Artifact column (JSON) — a self-contained deliverable (runnable HTML
+        # page or code file) the assistant produced with this message, so it
+        # can be reopened in the canvas when the conversation is reloaded.
+        result = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'messages' AND column_name = 'artifact'"
+        ))
+        if result.fetchone() is None:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN artifact TEXT"))
+            conn.commit()
+            print("Migration: added 'artifact' column to messages table.")
+
+        # Session token column for bearer auth (SEC-01)
+        result = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'session_token'"
+        ))
+        if result.fetchone() is None:
+            conn.execute(text("ALTER TABLE users ADD COLUMN session_token VARCHAR"))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_users_session_token "
+                "ON users (session_token)"
+            ))
+            conn.commit()
+            print("Migration: added 'session_token' column to users table.")
+
+        # Session token expiry column (SEC-02)
+        result = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'session_expires_at'"
+        ))
+        if result.fetchone() is None:
+            conn.execute(text("ALTER TABLE users ADD COLUMN session_expires_at TIMESTAMP"))
+            conn.commit()
+            print("Migration: added 'session_expires_at' column to users table.")
+
+        # Verification-token issue timestamp (SEC-13): tokens must expire
+        # after the 24h window the email advertises. Existing pending tokens
+        # are backfilled with now() — one final 24h window instead of the
+        # indefinite validity they had before.
+        result = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'verification_token_created_at'"
+        ))
+        if result.fetchone() is None:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN verification_token_created_at TIMESTAMP"
+            ))
+            backfilled = conn.execute(text(
+                "UPDATE users SET verification_token_created_at = NOW() "
+                "WHERE verification_token IS NOT NULL"
+            ))
+            conn.commit()
+            print(
+                "Migration: added 'verification_token_created_at' to users "
+                f"(backfilled {backfilled.rowcount} pending tokens)."
+            )
+
         # FK on messages.conversation_id — declared in the model but found
         # missing in the live DB (discovered during BUG-07 verification).
         result = conn.execute(text(

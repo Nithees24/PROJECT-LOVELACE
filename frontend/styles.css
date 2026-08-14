@@ -108,6 +108,9 @@ button {
 .sidebar {
   left: var(--shell-padding);
   width: var(--left-panel-width);
+  height: calc(100vh - (var(--panel-edge-gap) * 2));
+  display: flex;
+  flex-direction: column;
 }
 
 .control-panel {
@@ -126,6 +129,10 @@ button {
 
 .panel-body-left {
   width: 246px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .page-shell.left-collapsed .sidebar {
@@ -594,7 +601,7 @@ h3 {
 }
 
 .sidebar-gap {
-  min-height: 168px;
+  display: none !important;
 }
 
 .section-heading,
@@ -680,9 +687,69 @@ h3 {
   color: #fff7f0;
 }
 
+.sidebar-section:not(.sidebar-gap) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .history-list {
   gap: 3px;
   margin-top: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Extend the scroll area into the sidebar's 22px right padding so the
+     scrollbar sits flush against the panel edge instead of floating ~22px
+     inside it. padding-right keeps the rows clear of the scrollbar. */
+  margin-right: -22px;
+  padding-right: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* Minimalistic scrollbar: hidden until the list is hovered */
+.history-list:hover,
+.history-list:focus-within {
+  scrollbar-color: rgba(24, 35, 33, 0.18) transparent;
+}
+
+.history-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.history-list:hover::-webkit-scrollbar-thumb,
+.history-list:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(24, 35, 33, 0.18);
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 35, 33, 0.32);
+}
+
+:root[data-theme="dark"] .history-list:hover,
+:root[data-theme="dark"] .history-list:focus-within {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+:root[data-theme="dark"] .history-list:hover::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] .history-list:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+:root[data-theme="dark"] .history-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .history-row {
@@ -781,8 +848,11 @@ h3 {
 }
 
 .history-menu {
-  position: absolute;
-  top: calc(100% + 2px);
+  /* Fixed positioning (coordinates set in JS) so the menu escapes the history
+     list's overflow clipping and opens to the RIGHT of the three-dots button
+     instead of dropping over conversation titles. */
+  position: fixed;
+  top: 0;
   left: 0;
   min-width: 158px;
   padding: 6px;
@@ -793,7 +863,7 @@ h3 {
   border-radius: 12px;
   background: rgba(255, 252, 246, 0.98);
   box-shadow: 0 10px 26px rgba(34, 49, 45, 0.12);
-  z-index: 10;
+  z-index: 1000;
   backdrop-filter: blur(12px);
 }
 
@@ -801,9 +871,28 @@ h3 {
   display: none !important;
 }
 
-.history-menu.open-upwards {
-  top: auto;
-  bottom: calc(100% + 2px);
+/* Invisible click-catcher shown behind the open menu — blocks other rows'
+   three-dots so the first click just closes the current menu. */
+.history-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+.history-menu-backdrop[hidden] {
+  display: none !important;
+}
+
+/* Grow-and-fade in from the corner nearest the three dots (transform-origin
+   is set in JS to match the open direction). Runs on open because the menu
+   goes from display:none to shown. */
+@keyframes historyMenuIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.history-menu:not([hidden]) {
+  animation: historyMenuIn 150ms cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 .history-menu button {
@@ -1144,6 +1233,120 @@ h3 {
   line-height: 1.7;
   font-size: 1.05rem;
   color: var(--text);
+  /* Assistant text is rendered as real block HTML by parseMarkdown, so
+     spacing comes from element margins — NOT from preserved newlines. */
+  white-space: normal;
+}
+
+/* ── Assistant markdown formatting ──────────────────────────────────────
+   Consistent, comfortable rhythm between blocks. Headings sit close to the
+   text they introduce (no more big gaps), and the first/last block never adds
+   stray outer margin. */
+.message.assistant .message-text > *:first-child { margin-top: 0; }
+.message.assistant .message-text > *:last-child { margin-bottom: 0; }
+
+.message.assistant .message-text p {
+  margin: 0 0 0.85em;
+}
+
+.message.assistant .message-text h1,
+.message.assistant .message-text h2,
+.message.assistant .message-text h3,
+.message.assistant .message-text h4 {
+  line-height: 1.3;
+  font-weight: 650;
+  /* Tight to the content that follows, breathing room above. */
+  margin: 1.4em 0 0.4em;
+}
+.message.assistant .message-text h1 { font-size: 1.35rem; }
+.message.assistant .message-text h2 { font-size: 1.2rem; }
+.message.assistant .message-text h3 { font-size: 1.08rem; }
+.message.assistant .message-text h4 { font-size: 1rem; }
+
+.message.assistant .message-text ul,
+.message.assistant .message-text ol {
+  margin: 0.4em 0 0.9em;
+  padding-left: 1.5em;
+}
+.message.assistant .message-text li {
+  margin: 0.28em 0;
+  padding-left: 0.15em;
+}
+.message.assistant .message-text li::marker {
+  color: var(--accent);
+}
+
+.message.assistant .message-text a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.message.assistant .message-text code {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 0.9em;
+  background: rgba(32, 49, 45, 0.08);
+  padding: 0.12em 0.4em;
+  border-radius: 5px;
+}
+
+.message.assistant .message-text pre {
+  margin: 0.6em 0 1em;
+  padding: 14px 16px;
+  background: rgba(32, 49, 45, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+.message.assistant .message-text pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.88em;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.message.assistant .message-text blockquote {
+  margin: 0.6em 0 1em;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--muted, var(--text));
+  opacity: 0.92;
+}
+
+.message.assistant .message-text hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.4em 0;
+}
+
+.message.assistant .message-text strong { font-weight: 680; }
+
+/* Tables (GitHub-style) — bigger models emit these; keep them readable and
+   horizontally scrollable so a wide table never breaks the chat layout. */
+.message.assistant .message-text .md-table-wrap {
+  margin: 0.6em 0 1em;
+  overflow-x: auto;
+}
+.message.assistant .message-text table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.95em;
+}
+.message.assistant .message-text th,
+.message.assistant .message-text td {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.message.assistant .message-text thead th {
+  background: rgba(32, 49, 45, 0.06);
+  font-weight: 650;
+}
+.message.assistant .message-text tbody tr:nth-child(even) td {
+  background: rgba(32, 49, 45, 0.03);
 }
 
 .message-actions button,
@@ -1557,14 +1760,15 @@ h3 {
 }
 
 .composer {
+  /* Transparent positioning wrapper — the single visible box is .composer-box,
+     so there is no second container framing the text box. */
   position: relative;
   width: var(--chat-column-width);
   align-self: center;
-  padding: 16px;
-  background: rgba(255, 249, 240, 0.95);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(24, 35, 33, 0.04);
-  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.9), inset 0 4px 12px rgba(255, 255, 255, 0.3);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   flex-shrink: 0;
   border-radius: 28px;
 }
@@ -1977,7 +2181,15 @@ h3 {
   line-height: 1.3;
 }
 
-
+/* Active state for the Deep Research toggle when the mode is on. */
+.attachment-option-btn.is-active .attachment-option-icon {
+  background: rgba(161, 184, 150, 0.18);
+  border-color: rgba(161, 184, 150, 0.4);
+  color: #a1b896;
+}
+.attachment-option-btn.is-active .attachment-option-title {
+  color: #a1b896;
+}
 
 .composer-attachments[hidden] {
   display: none !important;
@@ -2173,11 +2385,15 @@ h3 {
 }
 
 .composer-box {
+  /* The single composer container: textarea on top, controls bar below. */
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   background: #fffdf9;
   border: 1px solid rgba(24, 35, 33, 0.08);
-  border-radius: 24px;
+  border-radius: 26px;
+  padding: 6px 8px 8px;
+  box-shadow: 0 8px 28px rgba(34, 49, 45, 0.08);
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
@@ -2195,42 +2411,67 @@ h3 {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-left: 14px;
+  padding: 6px 8px 0;
 }
 
 .composer-box textarea {
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
-  padding-left: 18px;
-}
-
-.composer-box:has(.composer-attachments:not([hidden])) textarea {
-  padding-left: 10px;
-  /* Reduced padding when attachments are present */
 }
 
 textarea {
   width: 100%;
-  min-height: 58px;
+  min-height: 48px;
   max-height: none;
   resize: none;
   overflow-y: hidden;
-  padding: 16px 18px;
+  padding: 10px 12px 6px;
   color: var(--text);
   outline: none;
   border: none;
   background: transparent;
 }
 
+/* Single input row inside the box: + / mode chip · textarea · send.
+   Bottom-aligned so the + and send stay pinned to the bottom as the textarea
+   grows to multiple lines. */
+.composer-main {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 0 2px;
+}
 
+.composer-main textarea {
+  flex: 1;
+  min-width: 0;
+  /* Match the 40px control height and center a single line so the text sits on
+     the same line as the + and send button; grows upward past this for multi-line. */
+  min-height: 40px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.composer-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.composer-main .icon-tool {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
 
 .composer-actions {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
-  margin-bottom: 3px;
+  margin: 0;
 }
 
 .send-button,
@@ -2674,9 +2915,9 @@ textarea:disabled {
 }
 
 :root[data-theme="dark"] .composer {
-  background: rgba(28, 32, 30, 0.95);
-  border-color: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.05), inset 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 :root[data-theme="dark"] textarea {
@@ -2804,6 +3045,591 @@ textarea:disabled {
 
 .theme-switch input:checked+.slider .thumb {
   transform: translateX(24px);
+}
+
+/* ──────────────────────────────────────────────
+   Deep Research workspace (Phase 2)
+   Two columns of rounded section cards: Plan (left) | Steps + Sources (right)
+   ────────────────────────────────────────────── */
+/* Align the research message with normal chat messages — same centered chat
+   column and avatar offset — instead of spanning full width shifted left. */
+.research-msg {
+  width: var(--chat-column-width);
+  max-width: var(--chat-column-width);
+  margin-inline: auto;
+}
+
+.research-card {
+  /* Fill the space remaining after the avatar (not the full column) so the
+     card fits inside the chat window and its left edge lines up with where the
+     general-chat response text starts. */
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Shared research tokens. Declared on the elements (not :root) because dark
+   mode overrides `color` on body rather than redefining --text, so a
+   :root-level tint would stay light-mode-tinted in dark. */
+.rw,
+.doc-canvas {
+  --rw-r: 16px;      /* outer frame */
+  --rw-r-card: 13px; /* inner soft cards (plan sections, sources, rows) */
+  --rw-soft: rgba(24, 35, 33, 0.05);
+  --rw-thumb: rgba(24, 35, 33, 0.16);
+}
+
+:root[data-theme="dark"] .rw,
+:root[data-theme="dark"] .doc-canvas {
+  --rw-soft: rgba(255, 255, 255, 0.06);
+  --rw-thumb: rgba(255, 255, 255, 0.16);
+}
+
+.rw {
+  /* Minimal shell: one rounded frame around the whole workspace. Everything
+     inside is separated by whitespace and at most a single hairline — no
+     nested boxes-inside-boxes. */
+  border: 1px solid var(--line);
+  border-radius: var(--rw-r);
+  background: var(--panel-strong);
+  overflow: hidden;
+}
+
+/* Quiet, thin scrollbars — the panes scroll a lot and chunky bars read as
+   clutter in a two-column card. */
+.rw ::-webkit-scrollbar { width: 6px; height: 6px; }
+.rw ::-webkit-scrollbar-thumb { background: var(--rw-thumb); border-radius: 999px; }
+.rw ::-webkit-scrollbar-track { background: transparent; }
+.rw * { scrollbar-width: thin; scrollbar-color: var(--rw-thumb) transparent; }
+
+/* Elements toggled via the `hidden` attribute (rw-current, rw-plan-actions,
+   rw-sources, rw-sum-panel) set their own display, so the UA [hidden] rule
+   loses — force it back so hidden means hidden. */
+.rw [hidden] { display: none !important; }
+
+.rw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 12px;
+  background: transparent;
+}
+
+.rw-head-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Plain accent label rather than a filled pill — one less shape in the header. */
+.rw-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.rw-query {
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rw-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rw-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+
+.rw[data-state="planning"] .rw-status-dot,
+.rw[data-state="researching"] .rw-status-dot {
+  background: var(--accent);
+  animation: rw-pulse 1.4s ease-in-out infinite;
+}
+
+.rw[data-state="done"] .rw-status-dot {
+  background: var(--lime);
+  animation: none;
+}
+
+.rw[data-state="error"] .rw-status-dot {
+  background: #e05c4a;
+  animation: none;
+}
+
+@keyframes rw-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+.rw-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 4px 18px 18px;
+}
+
+.rw-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 520px;
+  /* Without this, unconstrained children (sources list) overflow the 520px cap
+     and render on top of whatever follows .rw-body in the DOM. */
+  overflow: hidden;
+}
+
+/* The panes are not cards. Plan and Activity are split by a single hairline
+   instead of three stacked bordered boxes — the only framing in the body. */
+.rw-plan-pane,
+.rw-asec {
+  border: none;
+  background: transparent;
+  overflow: hidden;
+}
+
+.rw-plan-pane { padding-right: 18px; }
+
+.rw-pane-head,
+.rw-asec-head {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.8;
+  padding: 10px 0 10px;
+}
+
+.rw-plan-scroll,
+.rw-activity-scroll {
+  overflow-y: auto;
+  padding: 0 2px 2px 0;
+  /* flex children default to min-height:auto and refuse to shrink below their
+     content — min-height:0 lets them actually scroll inside the capped pane. */
+  flex: 1;
+  min-height: 0;
+}
+
+.rw-plan-scroll { display: flex; flex-direction: column; gap: 8px; }
+
+/* Plan editor */
+.rw-plan-title {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  padding: 2px 0;
+  margin-bottom: 2px;
+}
+.rw-plan-title:focus { outline: none; border-bottom-color: var(--line); }
+
+/* Borderless, softly-tinted blocks: rounded without adding another outline. */
+.rw-sec {
+  border: none;
+  border-radius: var(--rw-r-card);
+  padding: 12px 14px;
+  background: var(--rw-soft);
+  position: relative;
+}
+
+.rw-sec-num {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+
+.rw-sec input,
+.rw-sec textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  padding: 3px 0;
+  resize: none;
+}
+.rw-sec input:focus, .rw-sec textarea:focus { outline: none; }
+
+.rw-sec-title { font-size: 13px; font-weight: 600; line-height: 1.45; }
+.rw-sec-q { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.rw-queries { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+.rw-query-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.rw-query-row::before {
+  content: "";
+  width: 3px; height: 3px; border-radius: 50%;
+  background: currentColor; opacity: 0.55; flex-shrink: 0;
+}
+.rw-query-row input { font-size: 12px; }
+
+.rw-mini {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  line-height: 1;
+}
+.rw-mini:hover { color: var(--accent); background: var(--accent-soft); }
+
+.rw-sec-del { position: absolute; top: 8px; right: 8px; }
+
+.rw-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 2px;
+}
+
+.rw-approve {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.rw-approve:hover { filter: brightness(1.05); }
+.rw-approve:disabled { opacity: 0.5; cursor: default; }
+
+.rw-add-section {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rw-add-section:hover { color: var(--accent); border-color: var(--accent); }
+
+.rw[data-state="researching"] .rw-plan-actions,
+.rw[data-state="done"] .rw-plan-actions,
+.rw[data-state="report"] .rw-plan-actions { display: none; }
+.rw[data-state="researching"] .rw-sec input,
+.rw[data-state="researching"] .rw-sec textarea,
+.rw[data-state="done"] .rw-sec input,
+.rw[data-state="done"] .rw-sec textarea,
+.rw[data-state="report"] .rw-sec input,
+.rw[data-state="report"] .rw-sec textarea { pointer-events: none; }
+.rw[data-state="researching"] .rw-mini,
+.rw[data-state="done"] .rw-mini,
+.rw[data-state="report"] .rw-mini { display: none; }
+
+/* Activity pane */
+/* The activity column is just a transparent stack — its cards do the framing. */
+.rw-activity-pane {
+  position: relative;
+  gap: 4px;
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+}
+
+/* ── Activity sections (Steps / Sources) ─────────────────────────────────
+   Label + its own scrolling body, no frame of their own. Steps takes the
+   leftover height; Sources is bounded, so neither can grow into the other.
+   A hairline above Sources is the only divider inside the column. */
+.rw-asec {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.rw-asec-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.rw-asec-count {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.rw-asec-steps { flex: 1; }
+
+.rw-current {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  margin: 0 0 8px;
+  padding: 9px 13px;
+  border-radius: var(--rw-r-card);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--accent-soft);
+}
+.rw-current-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rw-spinner {
+  width: 13px; height: 13px;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: rw-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes rw-spin { to { transform: rotate(360deg); } }
+
+.rw-feed {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 2px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1;
+}
+
+.rw-row {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 9px;
+  align-items: start;
+  font-size: 12.5px;
+  line-height: 1.5;
+  animation: rw-fade 0.25s ease;
+}
+@keyframes rw-fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+.rw-row-ic { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; opacity: 0.9; }
+.rw-row-ic svg { width: 100%; height: 100%; }
+.rw-row.ok .rw-row-ic { color: var(--lime); }
+.rw-row.failed .rw-row-ic { color: #e05c4a; }
+
+.rw-row-body { min-width: 0; }
+.rw-stage {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.7;
+  margin-right: 7px;
+}
+.rw-row-title { color: var(--text); word-break: break-word; }
+.rw-row.failed .rw-row-title { color: var(--muted); }
+.rw-row-detail { color: var(--muted); font-size: 11px; margin-top: 1px; }
+
+/* Sources */
+/* Bounded so a long source list can't push past the pane — the list scrolls
+   under its fixed header. */
+.rw-sources {
+  flex-shrink: 0;
+  max-height: 190px;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.rw-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 2px 2px 0;
+}
+/* Borderless rows that only light up on hover — a long source list was the
+   single biggest source of visual noise in the column. */
+.rw-source {
+  display: flex; align-items: center; gap: 9px;
+  text-decoration: none; color: var(--text); font-size: 12.5px;
+  padding: 7px 9px; border-radius: var(--rw-r-card);
+  border: 1px solid transparent; background: transparent; min-width: 0;
+  transition: background 140ms ease;
+}
+.rw-source:hover { background: var(--rw-soft); border-color: transparent; }
+.rw-source img { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+.rw-source-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rw-source-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-source-host { font-size: 11px; color: var(--muted); opacity: 0.85; }
+
+.rw-empty { color: var(--muted); font-size: 12.5px; padding: 4px 0; }
+
+/* Staged plan preview (approval step) */
+.rw-preview { padding: 6px 18px 18px; }
+
+.rw-preview-intro {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.rw-preview-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.rw-pstages {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0 0 18px;
+}
+
+/* vertical rail connecting the stage icons */
+.rw-pstages::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--line);
+}
+
+.rw-pstage {
+  display: grid;
+  grid-template-columns: 27px 1fr;
+  gap: 12px;
+  position: relative;
+}
+
+.rw-pstage-ic {
+  width: 27px;
+  height: 27px;
+  border-radius: 999px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  z-index: 1;
+}
+.rw-pstage-ic svg { width: 14px; height: 14px; }
+
+.rw-pstage-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  padding-top: 4px;
+}
+.rw-pstage-eta { color: var(--muted); font-weight: 500; }
+
+.rw-pstage-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.rw-pstage-steps {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.rw-more {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0 0;
+}
+.rw-more:hover { color: var(--accent); }
+
+.rw-preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.rw-start {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.rw-start:hover { filter: brightness(1.05); }
+
+.rw-edit-plan {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rw-edit-plan:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* Stack panes on narrow viewports — the column hairline becomes a horizontal
+   rule between the stacked panes so the split still reads. */
+@media (max-width: 760px) {
+  .rw-body { grid-template-columns: 1fr; }
+  .rw-pane { max-height: none; }
+  .rw-plan-pane { padding-right: 0; }
+  .rw-activity-pane {
+    padding-left: 0;
+    padding-top: 6px;
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+  .rw-feed { max-height: 360px; }
 }
 
 /* Light mode (unchecked) */
@@ -3535,4 +4361,888 @@ html.theme-transition::view-transition-new(root) {
   50% {
     opacity: 0.4;
   }
+}
+/* ══════════════════════════════════════════════════════════════════════
+   Deep Research report canvas — a document pane that opens beside the
+   chat once a run finishes. Opening it sets --right-rail on .page-shell,
+   which the chat stage already reacts to, so the conversation reflows
+   into the remaining space instead of being covered.
+   ══════════════════════════════════════════════════════════════════════ */
+.page-shell {
+  --doc-canvas-width: min(720px, 50vw);
+}
+
+.page-shell.canvas-open {
+  --right-rail: calc(var(--doc-canvas-width) + var(--panel-gap));
+}
+
+.doc-canvas {
+  position: absolute;
+  top: var(--panel-edge-gap);
+  bottom: var(--panel-edge-gap);
+  right: var(--shell-padding);
+  width: var(--doc-canvas-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel-strong);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  z-index: 4;
+  transform-origin: right center;
+  animation: dc-in 320ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.doc-canvas[hidden] { display: none; }
+
+:root[data-theme="dark"] .doc-canvas {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes dc-in {
+  from { opacity: 0; transform: translateX(24px) scale(0.985); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.dc-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px 14px 24px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.dc-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dc-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dc-menu-wrap { position: relative; }
+
+.dc-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.dc-tool:hover,
+.dc-tool[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.dc-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.dc-close:hover { background: var(--accent-soft); color: var(--accent); }
+
+.dc-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  max-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+  z-index: 6;
+}
+
+.dc-menu[hidden] { display: none; }
+
+.dc-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dc-menu-item:hover { background: var(--accent-soft); color: var(--accent); }
+.dc-menu-item[data-level="3"] { padding-left: 22px; font-size: 12.5px; color: var(--muted); }
+.dc-menu-empty { padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
+
+/* Divides the copy actions from the file downloads in Share & Export. */
+.dc-menu-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--line);
+}
+
+.dc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 30px 56px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(24, 35, 33, 0.24) transparent;
+}
+
+.dc-scroll::-webkit-scrollbar { width: 10px; }
+.dc-scroll::-webkit-scrollbar-track { background: transparent; }
+.dc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(24, 35, 33, 0.2);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+:root[data-theme="dark"] .dc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  background-clip: content-box;
+}
+
+/* Document typography — wider and airier than a chat bubble. */
+.dc-doc {
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.dc-doc h1 { font-size: 27px; line-height: 1.25; margin: 0 0 20px; font-weight: 700; }
+.dc-doc h2 { font-size: 20px; line-height: 1.3; margin: 34px 0 12px; font-weight: 650; }
+.dc-doc h3 { font-size: 16.5px; margin: 26px 0 10px; font-weight: 600; }
+.dc-doc p { margin: 0 0 16px; }
+.dc-doc ul, .dc-doc ol { margin: 0 0 16px; padding-left: 22px; }
+.dc-doc li { margin-bottom: 7px; }
+/* parseMarkdown wraps every table in .md-table-wrap; without this the wrapper
+   is unstyled here and a wide table stretches the pane instead of scrolling. */
+.dc-doc .md-table-wrap { margin: 0 0 20px; overflow-x: auto; }
+.dc-doc table { width: 100%; border-collapse: collapse; margin: 0; font-size: 14px; }
+.dc-doc th, .dc-doc td {
+  border: 1px solid var(--line);
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.dc-doc th { background: var(--accent-soft); font-weight: 600; }
+.dc-doc blockquote {
+  margin: 0 0 16px;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+
+/* wide content scrolls inside itself rather than stretching the pane */
+.dc-doc pre { overflow-x: auto; }
+
+/* ── Math (KaTeX) and code blocks (highlight.js) ──────────────────────────
+   Both libraries bring their own typography; these rules only handle the
+   spacing and overflow the app is responsible for. */
+.katex { font-size: 1.05em; }
+
+/* A display equation is its own block: centred, with room around it, and
+   scrollable on its own if it's wider than the column. */
+.katex-display {
+  margin: 20px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}
+
+/* Inline math must not inherit the code-span styling or stretch line height. */
+.katex-error { color: #e05c4a; }
+
+/* highlight.js themes paint .hljs; give the block padding and rounded edges
+   so it matches the rest of the report's card language. */
+pre code.hljs {
+  display: block;
+  padding: 14px 16px;
+  border-radius: var(--rw-r-card, 12px);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.dc-doc pre { margin: 0 0 20px; }
+.dc-doc .katex-display { margin: 24px 0; }
+.message.assistant .message-text pre code.hljs { font-size: 12.5px; }
+
+.dc-sources {
+  margin-top: 34px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.dc-sources-head {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dc-sources-list { display: flex; flex-direction: column; gap: 6px; }
+
+/* ══════════════════════════════════════════════════════════════════
+   Artifacts — canvas panes + the chat-side card that opens them
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Preview / Code switch in the canvas toolbar */
+.dc-modes {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--rw-soft);
+}
+
+/* An author `display` beats the UA's [hidden] rule, so the switch stayed
+   visible on research reports (which have no Preview/Code to switch) until
+   this was added — same guard as .dc-menu / .dc-artifact / .dc-frame. */
+.dc-modes[hidden] { display: none; }
+
+.dc-mode {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.dc-mode:hover { color: var(--text); }
+
+.dc-mode.is-active {
+  color: var(--accent);
+  background: var(--panel-strong);
+}
+
+/* Artifact body: fills the canvas below the header. */
+.dc-artifact {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dc-artifact[hidden] { display: none; }
+
+/* The sandboxed frame. White base so a page that sets no background isn't
+   rendered on the app's dark panel and left unreadable. */
+.dc-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+}
+
+.dc-frame[hidden] { display: none; }
+
+.dc-codewrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.dc-codewrap[hidden] { display: none; }
+
+.dc-code {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── The chat-side artifact card ── */
+.af-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px 15px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.af-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.af-card.is-open { border-color: var(--accent); background: var(--accent-soft); }
+
+.af-card-ic {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--brand-green-surface);
+  color: #f4efe4;
+  flex-shrink: 0;
+}
+
+.af-card-ic svg { width: 16px; height: 16px; }
+.af-card-meta { min-width: 0; }
+
+.af-card-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.af-card-sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Sandbox/completeness caveat — a limitation of the artifact, not an error, so
+   it reads as a quiet note rather than a red failure state. */
+.af-card-note {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* ── The chat-side report card that opens the canvas ── */
+.rw-report-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.rw-report-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.rw-report-card.is-open { border-color: var(--accent); background: var(--accent-soft); }
+
+.rw-report-ic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--brand-green-surface);
+  color: #f4efe4;
+  flex-shrink: 0;
+}
+
+.rw-report-ic svg { width: 17px; height: 17px; }
+
+/* The card's markup uses <span>s. min-width / overflow / text-overflow are all
+   no-ops on inline boxes, so a long report title escaped the card instead of
+   truncating — these must be block-level for the ellipsis to apply. */
+.rw-report-meta {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rw-report-name {
+  display: block;
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rw-report-sub {
+  display: block;
+  max-width: 100%;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Finished state ───────────────────────────────────────────────────────
+   The live two-pane grid is replaced outright (never re-revealed) by one
+   quiet block: note → report card → one "Research details" disclosure. */
+.rw[data-state="report"] .rw-body { display: none; }
+
+.rw-done { padding: 4px 18px 18px; }
+
+.rw-done-note {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.rw-report-wrap { margin: 0; }
+
+/* Disclosure row: quiet by default, so the report card stays the focal point. */
+.rw-sum-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.rw-sum-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.rw-sum-toggle:hover { color: var(--text); }
+.rw-sum-toggle.is-open { color: var(--accent); }
+
+.rw-sum-caret {
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  transition: transform 160ms ease;
+}
+.rw-sum-caret svg { width: 100%; height: 100%; }
+.rw-sum-toggle.is-open .rw-sum-caret { transform: rotate(90deg); }
+
+.rw-sum-meta {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The disclosure body: a tab row over one shared, bounded view. */
+.rw-sum-panel {
+  margin-top: 10px;
+  animation: rw-fade 0.2s ease;
+}
+
+/* Three options inside the disclosure. Quiet pills — the active one carries
+   the accent, so the row reads as a control strip, not as content. */
+.rw-sum-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.rw-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: var(--rw-soft);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.rw-tab:hover { color: var(--text); }
+
+.rw-tab.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rw-tab-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.rw-tab.is-active .rw-tab-count { color: var(--accent); }
+
+/* The shared body — bounded so a long run can't stretch the message out of
+   the chat flow. Transparent: the rounded item cards inside do the framing. */
+.rw-sum-view {
+  max-height: 340px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Same trick as .history-list: extend the scroll area into .rw-done's 18px
+     right padding so the scrollbar sits flush against the card edge instead
+     of floating 18px inside it. padding-right keeps the rows off the bar. */
+  margin-right: -18px;
+  padding-right: 13px;
+  padding-left: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* Minimalistic scrollbar: hidden until the list is hovered */
+.rw-sum-view:hover,
+.rw-sum-view:focus-within {
+  scrollbar-color: rgba(24, 35, 33, 0.18) transparent;
+}
+
+.rw-sum-view::-webkit-scrollbar { width: 5px; }
+.rw-sum-view::-webkit-scrollbar-track { background: transparent; }
+
+.rw-sum-view::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.rw-sum-view:hover::-webkit-scrollbar-thumb,
+.rw-sum-view:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(24, 35, 33, 0.18);
+}
+
+.rw-sum-view::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 35, 33, 0.32);
+}
+
+:root[data-theme="dark"] .rw-sum-view:hover,
+:root[data-theme="dark"] .rw-sum-view:focus-within {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+:root[data-theme="dark"] .rw-sum-view:hover::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] .rw-sum-view:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+:root[data-theme="dark"] .rw-sum-view::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+/* Plan (read-only) */
+.rw-sum-plan { display: flex; flex-direction: column; gap: 8px; }
+
+.rw-sum-sec {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 11px 14px;
+  border: none;
+  border-radius: var(--rw-r-card);
+  background: var(--rw-soft);
+}
+
+.rw-sum-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1.5;
+  padding-top: 1px;
+}
+
+.rw-sum-sec-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.rw-sum-sec-q { font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+
+/* Steps + Sources reuse the live feed's row / source styling, with each row
+   promoted to its own rounded card. (.rw-source already carries a border and
+   radius from the live view, so only the step rows need the treatment.) */
+.rw-sum-steps { display: flex; flex-direction: column; gap: 6px; }
+.rw-sum-sources { display: flex; flex-direction: column; gap: 6px; }
+
+/* Match the step rows' card metrics so all three options read as one system. */
+.rw-sum-sources .rw-source { padding: 10px 14px; border-radius: var(--rw-r-card); }
+.rw-sum-sources .rw-source:hover { background: var(--rw-soft); }
+
+.rw-sum-steps .rw-row {
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--rw-r-card);
+  background: var(--rw-soft);
+  animation: none;
+}
+
+/* Narrow viewports: the canvas takes the screen instead of splitting it. */
+@media (max-width: 1100px) {
+  .page-shell { --doc-canvas-width: calc(100vw - (var(--shell-padding) * 2)); }
+  .page-shell.canvas-open { --right-rail: 0px; }
+}
+
+.rw[data-state="report"] .rw-status-dot {
+  background: var(--lime);
+  animation: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Document agent card (.dw) — reuses the research workspace shell and
+   tokens, but shows one question at a time instead of a two-pane grid.
+   ══════════════════════════════════════════════════════════════════ */
+.dw-ask,
+.dw-run,
+.dw-done { padding: 4px 18px 18px; }
+
+.dw-ask[hidden],
+.dw-run[hidden],
+.dw-done[hidden] { display: none; }
+
+/* What the router carried over from the chat instead of asking. Sits above the
+   interview so the user sees the assumptions before answering around them. */
+.dw-carried {
+  margin: 0 18px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.06));
+}
+
+.dw-carried-head {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.dw-carried-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.dw-carried-list li {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.dw-carried-label {
+  color: var(--muted);
+  flex: 0 0 auto;
+  max-width: 55%;
+}
+
+.dw-carried-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.dw-progress {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.dw-question {
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
+.dw-why {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.dw-why[hidden] { display: none; }
+
+.dw-options {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dw-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--rw-soft);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.dw-option:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.dw-option:disabled { cursor: default; opacity: 0.5; }
+
+/* The chosen answer stays legible after the question is answered — the
+   others fade, so the card reads as a record of what was decided. */
+.dw-option.is-chosen {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
+.dw-option-label { font-size: 13.5px; font-weight: 600; }
+.dw-option-desc { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.dw-option-desc[hidden] { display: none; }
+
+.dw-custom {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dw-custom[hidden] { display: none; }
+
+.dw-custom-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.dw-custom-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.dw-custom-go {
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--rw-soft);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dw-custom-go:hover { border-color: var(--accent); color: var(--accent); }
+
+.dw-ask-actions { display: flex; justify-content: flex-end; }
+
+.dw-skip {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.dw-skip:hover { color: var(--accent); text-decoration: underline; }
+
+/* Delivery row: the chosen format is a real file, so downloading it is a
+   primary action here rather than something buried in the export menu. */
+.dw-deliver {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.dw-download {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.dw-download:hover:not(:disabled) { filter: brightness(1.05); }
+.dw-download:disabled { opacity: 0.5; cursor: default; }
+
+.dw-deliver-status {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* Print / Save as PDF exports just the report document. */
+@media print {
+  body { overflow: visible; background: #fff; }
+  .sidebar, .chat-stage, .panel-toggle, .composer { display: none !important; }
+  .doc-canvas {
+    position: static;
+    width: auto;
+    height: auto;
+    border: 0;
+    box-shadow: none;
+    background: #fff;
+    backdrop-filter: none;
+    animation: none;
+  }
+  .dc-tools { display: none !important; }
+  .dc-head { border-bottom: 0; padding-left: 0; }
+  .dc-scroll { overflow: visible; padding: 0; }
 }

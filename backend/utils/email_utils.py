@@ -11,6 +11,7 @@ from backend.config import (
     SMTP_PORT,
     SMTP_SERVER,
     SMTP_USER,
+    VERIFICATION_TOKEN_TTL_HOURS,
 )
 
 
@@ -98,7 +99,7 @@ def send_verification_email(to_email: str, token: str, base_url: str):
         "Welcome to Project Lovelace. To finish setting up your account, "
         "verify your email address by opening this link:\n\n"
         f"{verification_link}\n\n"
-        "This link will expire in 24 hours. If you did not create an account "
+        f"This link will expire in {VERIFICATION_TOKEN_TTL_HOURS} hours. If you did not create an account "
         "with Project Lovelace, you can safely ignore this email."
     )
     
@@ -132,7 +133,7 @@ def send_verification_email(to_email: str, token: str, base_url: str):
                                     </tr>
                                 </table>
                                 <p style="margin: 35px 0 0 0; color: #8c8c8c; font-size: 14px; line-height: 1.5;">
-                                    This link will expire in 24 hours. If you did not create an account with Project Lovelace, you can safely ignore this email.
+                                    This link will expire in {VERIFICATION_TOKEN_TTL_HOURS} hours. If you did not create an account with Project Lovelace, you can safely ignore this email.
                                 </p>
                                 <div style="margin: 30px 0; border-top: 1px solid #e0ddd7;"></div>
                                 <p style="margin: 0; color: #a0a0a0; font-size: 12px; line-height: 1.5; word-break: break-all;">

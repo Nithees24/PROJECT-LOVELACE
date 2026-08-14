@@ -8,6 +8,9 @@ venv/
 .env/
 rag_state/
 .marker
+# Local RAG stores (CLOUD=False) — per-conversation vector & keyword data
+chroma_db/
+keyword_index/
 # PyCharm
 .idea/
 
@@ -37,5 +40,14 @@ dist/
 # Frontend Dependencies (if your website uses JavaScript/Node.js for the frontend)
 node_modules/
 
+# NOTE: frontend/vendor/ is deliberately NOT ignored. It holds the vendored
+# KaTeX + highlight.js builds that render math and code in research reports.
+# There is no build step or npm install in this project's setup, so ignoring
+# them would make a fresh clone silently lose math/code rendering (the <link>
+# and <script> tags 404 and the renderers fall back to plain text).
+
 # Audit / analysis reports (may quote source code and line numbers)
 reports/
+
+# Architecture Documents
+Architecture/*.pdf
